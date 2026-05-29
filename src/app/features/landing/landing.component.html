@@ -1,0 +1,411 @@
+<div class="min-h-screen" style="background: var(--color-bg);">
+
+  <!-- Hero Section -->
+  <section class="relative pt-24 pb-12 px-6 overflow-hidden">
+    <!-- Background effects -->
+    <div class="absolute inset-0 pointer-events-none">
+      <div class="absolute top-0 left-1/4 w-96 h-96 rounded-full opacity-10 blur-3xl"
+           style="background: radial-gradient(circle, #1a5cff 0%, transparent 70%);"></div>
+      <div class="absolute top-0 right-1/4 w-64 h-64 rounded-full opacity-5 blur-3xl"
+           style="background: radial-gradient(circle, #7c3aed 0%, transparent 70%);"></div>
+      <div class="absolute inset-0 bg-grid-pattern opacity-30"></div>
+    </div>
+
+    <div class="relative max-w-7xl mx-auto">
+      <!-- Badge -->
+      <div class="flex justify-center mb-6">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono border"
+              style="background: rgba(26, 92, 255, 0.1); border-color: rgba(26, 92, 255, 0.3); color: #4a7fff;">
+          <span class="w-1.5 h-1.5 bg-brand-400 rounded-full animate-pulse"></span>
+          Frontend CoE · Version 2.0 · 2025
+        </span>
+      </div>
+
+      <!-- Title -->
+      <h1 class="font-display text-4xl md:text-6xl font-bold text-center mb-6 tracking-tight"
+          style="color: var(--color-text);">
+        Frontend Best Practices<br>
+        <span class="gradient-text">Guidelines Directory</span>
+      </h1>
+
+      <p class="text-center max-w-2xl mx-auto mb-10 text-base md:text-lg" style="color: var(--color-text-muted);">
+        A comprehensive, searchable reference for engineering teams. 
+        Every item is ordered by severity, backed by rationale, and ready for code reviews.
+      </p>
+
+      <!-- Stats Row -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mb-10">
+        <div class="p-4 rounded-xl text-center glass">
+          <div class="font-display text-3xl font-bold text-white">{{ overallStats.total }}</div>
+          <div class="text-xs mt-1" style="color: var(--color-text-muted);">Total Checks</div>
+        </div>
+        <div class="p-4 rounded-xl text-center glass">
+          <div class="font-display text-3xl font-bold text-red-400">{{ overallStats.critical }}</div>
+          <div class="text-xs mt-1" style="color: var(--color-text-muted);">Critical Items</div>
+        </div>
+        <div class="p-4 rounded-xl text-center glass">
+          <div class="font-display text-3xl font-bold text-brand-400">{{ overallStats.mustHave }}</div>
+          <div class="text-xs mt-1" style="color: var(--color-text-muted);">Must Have</div>
+        </div>
+        <div class="p-4 rounded-xl text-center glass">
+          <div class="font-display text-3xl font-bold text-green-400">{{ overallStats.goodToHave }}</div>
+          <div class="text-xs mt-1" style="color: var(--color-text-muted);">Good to Have</div>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="flex justify-center gap-4">
+        <a routerLink="/login"
+           class="px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 hover:scale-105 active:scale-95"
+           style="background: linear-gradient(135deg, #1a5cff, #7c3aed);">
+          <span class="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5,3 19,12 5,21 5,3"/>
+            </svg>
+            Start an Audit
+          </span>
+        </a>
+        <a href="#guidelines"
+           class="px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-white/10"
+           style="color: var(--color-text); border: 1px solid rgba(255,255,255,0.1);">
+          Browse Guidelines ↓
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Guidelines Section -->
+  <section id="guidelines" class="px-4 pb-20 max-w-8xl mx-auto">
+    <div class="max-w-7xl mx-auto">
+
+      <!-- Search & Filter Bar -->
+      <div class="flex flex-col md:flex-row gap-3 mb-6">
+        <!-- Search -->
+        <div class="relative flex-1">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none"
+               width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" placeholder="Search practices, topics, or keywords..."
+                 class="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition-all font-body"
+                 style="background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);"
+                 [value]="searchQuery()"
+                 (input)="onSearch($event)" />
+        </div>
+
+        <!-- Group Filter -->
+        <div class="flex gap-1 p-1 rounded-xl" style="background: var(--color-surface); border: 1px solid var(--color-border);">
+          @for (group of [{id: 'all', label: 'All'}, {id: 'must-have', label: '🔴 Must Have'}, {id: 'good-to-have', label: '🟢 Good to Have'}]; track group.id) {
+            <button class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                    [ngClass]="activeGroupFilter() === group.id ? 'bg-brand-600 text-white' : 'text-surface-400 hover:text-white hover:bg-white/5'"
+                    (click)="setGroupFilter(group.id)">
+              {{ group.label }}
+            </button>
+          }
+        </div>
+
+        <!-- Severity Filters -->
+        <div class="flex gap-1.5">
+          @for (sev of [{id: 'CRITICAL', color: 'red'}, {id: 'HIGH', color: 'orange'}, {id: 'MEDIUM', color: 'yellow'}]; track sev.id) {
+            <button class="px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium border transition-all"
+                    [ngClass]="[
+                      activeSeverityFilters().includes(sev.id)
+                        ? (sev.color === 'red' ? 'bg-red-500/20 text-red-400 border-red-500/50' : sev.color === 'orange' ? 'bg-orange-500/20 text-orange-400 border-orange-500/50' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50')
+                        : 'text-surface-400 border-white/10 hover:border-white/20 hover:text-white'
+                    ]"
+                    (click)="toggleSeverityFilter(sev.id)">
+              {{ sev.id }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Split Layout: Sidebar + Content -->
+      <div class="flex gap-4">
+
+        <!-- Sidebar Navigation -->
+        <aside class="hidden lg:flex flex-col gap-1 w-52 xl:w-64 flex-shrink-0 sticky top-20 h-fit">
+          <p class="text-xs font-semibold uppercase tracking-widest mb-2 px-3" style="color: var(--color-text-muted);">
+            Topics
+          </p>
+          @for (topic of checklistService.topics(); track topic.id) {
+            <button
+              class="w-full text-left px-3 py-2.5 rounded-xl transition-all group"
+              [ngClass]="checklistService.selectedTopicId() === topic.id
+                ? 'text-white'
+                : 'text-surface-400 hover:text-white hover:bg-white/5'"
+              [style.background]="checklistService.selectedTopicId() === topic.id
+                ? 'rgba(26, 92, 255, 0.12)'
+                : ''"
+              [style.border]="checklistService.selectedTopicId() === topic.id
+                ? '1px solid rgba(26, 92, 255, 0.3)'
+                : '1px solid transparent'"
+              (click)="selectTopic(topic.id)">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full flex-shrink-0"
+                     [style.background]="topic.color"></div>
+                <span class="text-sm font-medium leading-tight">{{ topic.shortName }}</span>
+                <span class="ml-auto text-xs font-mono rounded px-1"
+                      style="background: rgba(255,255,255,0.06); color: var(--color-text-muted);">
+                  {{ getTopicItemCount(topic) }}
+                </span>
+              </div>
+              @if (getTopicCriticalCount(topic) > 0) {
+                <div class="mt-1 ml-4 text-xs text-red-400/80">
+                  {{ getTopicCriticalCount(topic) }} critical
+                </div>
+              }
+            </button>
+          }
+        </aside>
+
+        <!-- Mobile Topic Tabs -->
+        <div class="lg:hidden w-full -mx-4 px-4 mb-4">
+          <div class="flex gap-2 overflow-x-auto pb-2" style="scrollbar-width: none;">
+            @for (topic of checklistService.topics(); track topic.id) {
+              <button
+                class="flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
+                [ngClass]="checklistService.selectedTopicId() === topic.id
+                  ? 'text-white bg-brand-600/30 border border-brand-500/40'
+                  : 'text-surface-400 border border-white/10 hover:text-white'"
+                (click)="selectTopic(topic.id)">
+                {{ topic.shortName }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-w-0">
+          @if (currentTopic) {
+            <!-- Topic Header -->
+            <div class="mb-6 p-5 rounded-2xl"
+                 style="background: var(--color-surface); border: 1px solid var(--color-border);">
+              <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                     [style.background]="'rgba(' + hexToRgb(currentTopic.color) + ', 0.15)'"
+                     [style.border]="'1px solid rgba(' + hexToRgb(currentTopic.color) + ', 0.3)'">
+                  <div class="w-3 h-3 rounded-full" [style.background]="currentTopic.color"></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-3 flex-wrap mb-2">
+                    <h2 class="font-display text-xl font-bold" style="color: var(--color-text);">
+                      {{ currentTopic.name }}
+                    </h2>
+                    <!-- Stats pills -->
+                    <div class="flex gap-2 flex-wrap">
+                      <span class="px-2 py-0.5 rounded-md text-xs font-mono badge-critical">
+                        {{ getTopicStats(currentTopic.id)?.critical }} CRITICAL
+                      </span>
+                      <span class="px-2 py-0.5 rounded-md text-xs font-mono badge-high">
+                        {{ getTopicStats(currentTopic.id)?.high }} HIGH
+                      </span>
+                      <span class="px-2 py-0.5 rounded-md text-xs font-mono badge-medium">
+                        {{ getTopicStats(currentTopic.id)?.medium }} MEDIUM
+                      </span>
+                    </div>
+                  </div>
+                  <p class="text-sm leading-relaxed" style="color: var(--color-text-muted);">
+                    {{ currentTopic.description }}
+                  </p>
+                  <!-- Tags -->
+                  <div class="flex gap-2 mt-3 flex-wrap">
+                    @for (tag of currentTopic.tags; track tag) {
+                      <span class="text-xs px-2 py-0.5 rounded-md font-mono"
+                            style="background: rgba(255,255,255,0.05); color: var(--color-text-muted); border: 1px solid rgba(255,255,255,0.08);">
+                        {{ tag }}
+                      </span>
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- MUST HAVE Section -->
+            @if (filteredItems().mustHave.length > 0) {
+              <section class="mb-6">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base">🔴</span>
+                    <h3 class="font-display font-bold text-lg" style="color: var(--color-text);">Must Have</h3>
+                  </div>
+                  <div class="flex-1 h-px" style="background: rgba(239, 68, 68, 0.2);"></div>
+                  <span class="text-xs font-mono text-red-400/70 border border-red-500/20 px-2 py-0.5 rounded">
+                    Non-negotiable · Address this sprint
+                  </span>
+                </div>
+
+                <div class="space-y-2">
+                  @for (item of filteredItems().mustHave; track item.id; let i = $index) {
+                    <div class="rounded-xl border transition-all overflow-hidden"
+                         [style.border-color]="isExpanded(item.id) ? 'rgba(239, 68, 68, 0.25)' : 'var(--color-border)'"
+                         [style.background]="isExpanded(item.id) ? 'rgba(239, 68, 68, 0.04)' : 'var(--color-surface)'">
+
+                      <!-- Item Header -->
+                      <button class="w-full text-left px-4 py-3 flex items-start gap-3"
+                              (click)="toggleItem(item.id)">
+                        <!-- Number -->
+                        <span class="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-xs font-mono font-bold mt-0.5"
+                              style="background: rgba(239, 68, 68, 0.1); color: rgba(239, 68, 68, 0.7); border: 1px solid rgba(239, 68, 68, 0.2);">
+                          {{ String(i + 1).padStart(2, '0') }}
+                        </span>
+
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-2 flex-wrap mb-1">
+                            <app-severity-badge [severity]="item.severity" />
+                          </div>
+                          <p class="text-sm font-medium leading-snug" style="color: var(--color-text);">
+                            {{ item.practice }}
+                          </p>
+                        </div>
+
+                        <!-- Chevron -->
+                        <svg class="w-4 h-4 flex-shrink-0 mt-1 transition-transform text-surface-400"
+                             [ngClass]="{'rotate-180': isExpanded(item.id)}"
+                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="6,9 12,15 18,9"/>
+                        </svg>
+                      </button>
+
+                      <!-- Expanded Content -->
+                      @if (isExpanded(item.id)) {
+                        <div class="px-4 pb-4 ml-9 animate-fade-in">
+                          <div class="grid md:grid-cols-2 gap-3">
+                            <!-- Why it matters -->
+                            <div class="p-3 rounded-xl"
+                                 style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
+                              <div class="flex items-center gap-1.5 mb-2">
+                                <svg class="text-brand-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                  <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+                                </svg>
+                                <span class="text-xs font-semibold uppercase tracking-wider text-brand-400">
+                                  Why it matters
+                                </span>
+                              </div>
+                              <p class="text-xs leading-relaxed" style="color: var(--color-text-muted);">
+                                {{ item.whyItMatters }}
+                              </p>
+                            </div>
+
+                            <!-- Long run impact -->
+                            <div class="p-3 rounded-xl"
+                                 style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
+                              <div class="flex items-center gap-1.5 mb-2">
+                                <svg class="text-green-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                </svg>
+                                <span class="text-xs font-semibold uppercase tracking-wider text-green-400">
+                                  Long-run impact
+                                </span>
+                              </div>
+                              <p class="text-xs leading-relaxed italic" style="color: var(--color-text-muted);">
+                                {{ item.longRunImpact }}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </section>
+            }
+
+            <!-- GOOD TO HAVE Section -->
+            @if (filteredItems().goodToHave.length > 0) {
+              <section class="mb-6">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base">🟢</span>
+                    <h3 class="font-display font-bold text-lg" style="color: var(--color-text);">Good to Have</h3>
+                  </div>
+                  <div class="flex-1 h-px" style="background: rgba(34, 197, 94, 0.2);"></div>
+                  <span class="text-xs font-mono text-green-400/70 border border-green-500/20 px-2 py-0.5 rounded">
+                    High value · Budget next cycle
+                  </span>
+                </div>
+
+                <div class="space-y-2">
+                  @for (item of filteredItems().goodToHave; track item.id; let i = $index) {
+                    <div class="rounded-xl border transition-all overflow-hidden"
+                         [style.border-color]="isExpanded(item.id) ? 'rgba(34, 197, 94, 0.25)' : 'var(--color-border)'"
+                         [style.background]="isExpanded(item.id) ? 'rgba(34, 197, 94, 0.03)' : 'var(--color-surface)'">
+
+                      <button class="w-full text-left px-4 py-3 flex items-start gap-3"
+                              (click)="toggleItem(item.id)">
+                        <span class="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-xs font-mono font-bold mt-0.5"
+                              style="background: rgba(34, 197, 94, 0.1); color: rgba(34, 197, 94, 0.7); border: 1px solid rgba(34, 197, 94, 0.2);">
+                          {{ String(i + 1).padStart(2, '0') }}
+                        </span>
+
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-2 flex-wrap mb-1">
+                            <app-severity-badge [severity]="item.severity" />
+                          </div>
+                          <p class="text-sm font-medium leading-snug" style="color: var(--color-text);">
+                            {{ item.practice }}
+                          </p>
+                        </div>
+
+                        <svg class="w-4 h-4 flex-shrink-0 mt-1 transition-transform text-surface-400"
+                             [ngClass]="{'rotate-180': isExpanded(item.id)}"
+                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="6,9 12,15 18,9"/>
+                        </svg>
+                      </button>
+
+                      @if (isExpanded(item.id)) {
+                        <div class="px-4 pb-4 ml-9 animate-fade-in">
+                          <div class="grid md:grid-cols-2 gap-3">
+                            <div class="p-3 rounded-xl"
+                                 style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
+                              <div class="flex items-center gap-1.5 mb-2">
+                                <svg class="text-brand-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                  <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+                                </svg>
+                                <span class="text-xs font-semibold uppercase tracking-wider text-brand-400">
+                                  Why it matters
+                                </span>
+                              </div>
+                              <p class="text-xs leading-relaxed" style="color: var(--color-text-muted);">{{ item.whyItMatters }}</p>
+                            </div>
+                            <div class="p-3 rounded-xl"
+                                 style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
+                              <div class="flex items-center gap-1.5 mb-2">
+                                <svg class="text-green-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                </svg>
+                                <span class="text-xs font-semibold uppercase tracking-wider text-green-400">
+                                  Long-run impact
+                                </span>
+                              </div>
+                              <p class="text-xs leading-relaxed italic" style="color: var(--color-text-muted);">{{ item.longRunImpact }}</p>
+                            </div>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </section>
+            }
+
+            <!-- Empty state -->
+            @if (filteredItems().mustHave.length === 0 && filteredItems().goodToHave.length === 0) {
+              <div class="flex flex-col items-center justify-center py-16 text-center">
+                <div class="w-12 h-12 rounded-full flex items-center justify-center mb-4"
+                     style="background: rgba(255,255,255,0.05);">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-surface-400">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                  </svg>
+                </div>
+                <p class="font-medium mb-2" style="color: var(--color-text);">No results found</p>
+                <p class="text-sm" style="color: var(--color-text-muted);">Try adjusting your search or filter criteria</p>
+              </div>
+            }
+          }
+        </main>
+      </div>
+    </div>
+  </section>
+</div>

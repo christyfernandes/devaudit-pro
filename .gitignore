@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Angular cache
+.angular/
+
+# Environment files (with secrets)
+src/environments/environment.prod.ts
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+coverage/

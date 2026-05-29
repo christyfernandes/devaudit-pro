@@ -1,0 +1,148 @@
+<div class="min-h-screen pt-20 pb-12 px-4" style="background: var(--color-bg);">
+  <div class="max-w-3xl mx-auto">
+
+    <!-- Header -->
+    <div class="mb-10 animate-fade-in">
+      <div class="flex items-center gap-2 text-xs font-mono mb-4" style="color: var(--color-text-muted);">
+        <span>Dashboard</span>
+        <span>/</span>
+        <span style="color: var(--color-text);">New Audit</span>
+      </div>
+      <h1 class="font-display text-3xl font-bold mb-2" style="color: var(--color-text);">
+        Start a Repository Audit
+      </h1>
+      <p style="color: var(--color-text-muted);">
+        Scan a GitHub repository against the Frontend CoE checklist. 
+        Get a detailed report with severity breakdowns and fix suggestions.
+      </p>
+    </div>
+
+    @if (!isScanning) {
+      <!-- Input Card -->
+      <div class="p-6 rounded-2xl mb-6 animate-slide-up"
+           style="background: var(--color-surface); border: 1px solid var(--color-border);">
+        <label class="block text-sm font-semibold mb-3" style="color: var(--color-text);">
+          GitHub Repository URL
+        </label>
+
+        <div class="flex gap-3">
+          <div class="flex-1 relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none"
+                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+            </svg>
+            <input type="url" placeholder="https://github.com/owner/repository"
+                   class="w-full pl-10 pr-4 py-3 rounded-xl text-sm outline-none transition-all font-mono"
+                   style="background: var(--color-surface-2); border: 1px solid var(--color-border); color: var(--color-text);"
+                   [(ngModel)]="repoUrlValue"
+                   (ngModelChange)="setRepo($event)"
+                   (keyup.enter)="validateAndScan()" />
+          </div>
+          <button (click)="validateAndScan()"
+                  class="px-5 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 active:scale-95 whitespace-nowrap"
+                  style="background: linear-gradient(135deg, #1a5cff, #7c3aed);">
+            <span class="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              Scan Repo
+            </span>
+          </button>
+        </div>
+
+        @if (urlError()) {
+          <p class="mt-2 text-xs text-red-400">{{ urlError() }}</p>
+        }
+      </div>
+
+      <!-- Quick examples -->
+      <div class="animate-fade-in">
+        <p class="text-xs font-medium mb-3" style="color: var(--color-text-muted);">Try with a popular repo:</p>
+        <div class="flex gap-2 flex-wrap">
+          @for (repo of popularRepos; track repo.url) {
+            <button (click)="setRepo(repo.url)"
+                    class="flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all hover:bg-white/10"
+                    style="background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+              </svg>
+              {{ repo.name }}
+              <span class="text-xs px-1.5 py-0.5 rounded"
+                    style="background: rgba(26, 92, 255, 0.1); color: #4a7fff;">{{ repo.type }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- What we scan -->
+      <div class="mt-8 p-5 rounded-2xl animate-fade-in"
+           style="background: var(--color-surface); border: 1px solid var(--color-border);">
+        <h3 class="text-sm font-semibold mb-4" style="color: var(--color-text);">What gets scanned</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          @for (item of ['Code Quality', 'TypeScript', 'Performance', 'Accessibility', 'Security', 'Testing', 'Angular Patterns', 'NFRs']; track item) {
+            <div class="flex items-center gap-2 text-xs" style="color: var(--color-text-muted);">
+              <svg class="text-brand-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20,6 9,17 4,12"/>
+              </svg>
+              {{ item }}
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Scanning State -->
+    @if (isScanning && scanProgress) {
+      <div class="animate-fade-in">
+        <div class="p-8 rounded-2xl mb-6"
+             style="background: var(--color-surface); border: 1px solid var(--color-border);">
+
+          <!-- Animated scanner icon -->
+          <div class="flex justify-center mb-6">
+            <div class="relative w-16 h-16">
+              <div class="absolute inset-0 rounded-full border-2 border-brand-500/30"></div>
+              <div class="absolute inset-0 rounded-full border-2 border-t-brand-500 animate-spin"></div>
+              <div class="absolute inset-2 rounded-full border border-brand-500/20"></div>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <svg class="text-brand-400" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <h2 class="font-display text-lg font-bold text-center mb-1" style="color: var(--color-text);">
+            Scanning Repository
+          </h2>
+          <p class="text-center text-sm mb-6" style="color: var(--color-text-muted);">
+            {{ scanProgress.phase }}
+          </p>
+
+          <!-- Progress Bar -->
+          <div class="mb-4">
+            <div class="flex justify-between text-xs font-mono mb-1" style="color: var(--color-text-muted);">
+              <span>{{ scanProgress.filesScanned }} / {{ scanProgress.totalFiles }} files</span>
+              <span>{{ scanProgress.progress }}%</span>
+            </div>
+            <div class="w-full h-2 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.05);">
+              <div class="h-full rounded-full transition-all duration-300"
+                   style="background: linear-gradient(135deg, #1a5cff, #7c3aed);"
+                   [style.width]="scanProgress.progress + '%'"></div>
+            </div>
+          </div>
+
+          <!-- Current file -->
+          <div class="p-3 rounded-xl font-mono text-xs"
+               style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); color: var(--color-text-muted);">
+            <span class="text-brand-400 mr-2">→</span>{{ scanProgress.currentFile }}
+          </div>
+        </div>
+
+        <button (click)="cancelScan()"
+                class="w-full py-2 text-sm text-surface-400 hover:text-red-400 transition-colors">
+          Cancel scan
+        </button>
+      </div>
+    }
+  </div>
+</div>

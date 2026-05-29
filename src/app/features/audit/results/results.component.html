@@ -1,0 +1,325 @@
+<div class="min-h-screen pt-20 pb-12 px-4" style="background: var(--color-bg);">
+  @if (audit) {
+    <div class="max-w-7xl mx-auto">
+
+      <!-- Header -->
+      <div class="mb-6 animate-fade-in">
+        <div class="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <div class="flex items-center gap-2 text-xs font-mono mb-2" style="color: var(--color-text-muted);">
+              <span>Audit</span><span>/</span>
+              <span class="font-medium" style="color: var(--color-text);">{{ audit.repoName }}</span>
+              <span class="px-1.5 py-0.5 rounded text-green-400"
+                    style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2);">
+                ✓ Completed
+              </span>
+            </div>
+            <h1 class="font-display text-2xl font-bold" style="color: var(--color-text);">
+              Audit Report
+            </h1>
+          </div>
+          <button (click)="newAudit()"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all hover:bg-white/10"
+                  style="border: 1px solid var(--color-border); color: var(--color-text);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M3 21v-5h5"/>
+            </svg>
+            New Audit
+          </button>
+        </div>
+      </div>
+
+      <!-- Score Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 animate-slide-up">
+        <!-- Overall Score -->
+        <div class="p-4 rounded-xl col-span-2 md:col-span-1"
+             style="background: var(--color-surface); border: 1px solid var(--color-border);">
+          <p class="text-xs mb-2" style="color: var(--color-text-muted);">Compliance Score</p>
+          <div class="flex items-end gap-2">
+            <span class="font-display text-4xl font-bold" [style.color]="getScoreColor(audit.overallScore)">
+              {{ audit.overallScore }}
+            </span>
+            <span class="text-xl font-display mb-1" style="color: var(--color-text-muted)">/100</span>
+          </div>
+          <span class="text-xs font-medium" [style.color]="getScoreColor(audit.overallScore)">
+            {{ getScoreLabel(audit.overallScore) }}
+          </span>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background: var(--color-surface); border: 1px solid var(--color-border);">
+          <p class="text-xs mb-2" style="color: var(--color-text-muted);">Failures</p>
+          <div class="font-display text-3xl font-bold text-red-400">{{ issueCountByStatus.fail }}</div>
+          <div class="text-xs mt-1 text-red-400/70">Issues found</div>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background: var(--color-surface); border: 1px solid var(--color-border);">
+          <p class="text-xs mb-2" style="color: var(--color-text-muted);">Warnings</p>
+          <div class="font-display text-3xl font-bold text-yellow-400">{{ issueCountByStatus.warning }}</div>
+          <div class="text-xs mt-1 text-yellow-400/70">Needs review</div>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background: var(--color-surface); border: 1px solid var(--color-border);">
+          <p class="text-xs mb-2" style="color: var(--color-text-muted);">Passed</p>
+          <div class="font-display text-3xl font-bold text-green-400">{{ issueCountByStatus.pass }}</div>
+          <div class="text-xs mt-1 text-green-400/70">Checks passed</div>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="flex gap-1 mb-5 p-1 rounded-xl w-fit"
+           style="background: var(--color-surface); border: 1px solid var(--color-border);">
+        <button class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                [ngClass]="activeTab() === 'matrix' ? 'bg-brand-600/30 text-white border border-brand-500/40' : 'text-surface-400 hover:text-white'"
+                (click)="activeTab.set('matrix')">
+          Summary Matrix
+        </button>
+        <button class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                [ngClass]="activeTab() === 'issues' ? 'bg-brand-600/30 text-white border border-brand-500/40' : 'text-surface-400 hover:text-white'"
+                (click)="activeTab.set('issues')">
+          Issue Explorer
+          @if (issueCountByStatus.fail > 0) {
+            <span class="ml-1.5 px-1.5 py-0.5 rounded text-xs badge-critical">{{ issueCountByStatus.fail }}</span>
+          }
+        </button>
+      </div>
+
+      <!-- SUMMARY MATRIX TAB -->
+      @if (activeTab() === 'matrix') {
+        <div class="animate-fade-in overflow-x-auto rounded-2xl"
+             style="background: var(--color-surface); border: 1px solid var(--color-border);">
+          <table class="w-full text-sm">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--color-border);">
+                <th class="text-left px-5 py-4 text-xs font-semibold uppercase tracking-wider"
+                    style="color: var(--color-text-muted); min-width: 160px;">Section</th>
+                <th class="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-red-400">
+                  <span class="flex items-center gap-1 justify-center">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
+                    CRITICAL
+                  </span>
+                </th>
+                <th class="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-orange-400">HIGH</th>
+                <th class="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-yellow-400">MEDIUM</th>
+                <th class="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-green-400">PASSED</th>
+                <th class="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider"
+                    style="color: var(--color-text-muted);">TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (entry of matrixTopics; track entry[0]) {
+                <tr class="transition-colors hover:bg-white/3 cursor-pointer"
+                    style="border-bottom: 1px solid rgba(255,255,255,0.04);"
+                    (click)="auditService.setFilterTopic(entry[0]); activeTab.set('issues')">
+                  <td class="px-5 py-3.5">
+                    <span class="font-medium" style="color: var(--color-text);">{{ entry[1].topicName }}</span>
+                  </td>
+                  <td class="px-4 py-3.5 text-center">
+                    @if (entry[1].critical > 0) {
+                      <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-sm font-bold text-red-400"
+                            style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3);">
+                        {{ entry[1].critical }}
+                      </span>
+                    } @else {
+                      <span class="text-surface-600">—</span>
+                    }
+                  </td>
+                  <td class="px-4 py-3.5 text-center">
+                    @if (entry[1].high > 0) {
+                      <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-sm font-bold text-orange-400"
+                            style="background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.3);">
+                        {{ entry[1].high }}
+                      </span>
+                    } @else {
+                      <span class="text-surface-600">—</span>
+                    }
+                  </td>
+                  <td class="px-4 py-3.5 text-center">
+                    @if (entry[1].medium > 0) {
+                      <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-sm font-bold text-yellow-400"
+                            style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.3);">
+                        {{ entry[1].medium }}
+                      </span>
+                    } @else {
+                      <span class="text-surface-600">—</span>
+                    }
+                  </td>
+                  <td class="px-4 py-3.5 text-center">
+                    <span class="text-green-400 font-medium">{{ entry[1].passed }}</span>
+                  </td>
+                  <td class="px-4 py-3.5 text-center" style="color: var(--color-text-muted);">{{ entry[1].total }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <!-- ISSUE EXPLORER TAB -->
+      @if (activeTab() === 'issues') {
+        <div class="animate-fade-in flex gap-4">
+
+          <!-- Issues List -->
+          <div class="flex-1 min-w-0" [ngClass]="selectedIssue() ? 'hidden md:flex md:flex-col' : 'flex flex-col'">
+
+            <!-- Search & Filters -->
+            <div class="flex gap-2 mb-4 flex-wrap">
+              <div class="relative flex-1 min-w-48">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none"
+                     width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input type="text" placeholder="Search issues..."
+                       class="w-full pl-9 pr-3 py-2 rounded-xl text-sm outline-none"
+                       style="background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);"
+                       [(ngModel)]="searchQueryValue"
+                       (ngModelChange)="onSearchChange($event)" />
+              </div>
+              <div class="flex gap-1">
+                @for (sev of ['CRITICAL', 'HIGH', 'MEDIUM']; track sev) {
+                  <button class="px-2 py-1.5 rounded-lg text-xs font-mono border transition-all"
+                          [ngClass]="filterSeverity().includes(sev)
+                            ? (sev === 'CRITICAL' ? 'badge-critical' : sev === 'HIGH' ? 'badge-high' : 'badge-medium')
+                            : 'text-surface-400 border-white/10 hover:text-white'"
+                          (click)="toggleSeverityFilter(sev)">
+                    {{ sev }}
+                  </button>
+                }
+              </div>
+              <div class="flex gap-1">
+                @for (status of ['fail', 'warning', 'pass']; track status) {
+                  <button class="px-2 py-1.5 rounded-lg text-xs font-medium border transition-all"
+                          [ngClass]="filterStatus().includes(status) ? 'bg-white/10 border-white/20 text-white' : 'text-surface-400 border-white/10'"
+                          (click)="toggleStatusFilter(status)">
+                    {{ getStatusIcon(status) }} {{ status }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Issues -->
+            <div class="space-y-2">
+              @for (issue of filteredIssues; track issue.id) {
+                <div class="rounded-xl p-4 cursor-pointer transition-all hover:brightness-110"
+                     [style.background]="selectedIssue()?.id === issue.id ? 'rgba(26, 92, 255, 0.1)' : 'var(--color-surface)'"
+                     [style.border]="selectedIssue()?.id === issue.id ? '1px solid rgba(26, 92, 255, 0.4)' : '1px solid var(--color-border)'"
+                     (click)="selectIssue(issue)">
+                  <div class="flex items-start gap-3">
+                    <span class="flex-shrink-0 mt-0.5 font-bold text-sm w-5 text-center"
+                          [style.color]="getStatusColor(issue.status)">
+                      {{ getStatusIcon(issue.status) }}
+                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 mb-1 flex-wrap">
+                        <app-severity-badge [severity]="issue.severity" />
+                        <span class="text-xs font-mono" style="color: var(--color-text-muted);">
+                          {{ issue.topicName }}
+                        </span>
+                      </div>
+                      <p class="text-sm leading-snug" style="color: var(--color-text);">{{ issue.practice }}</p>
+                      @if (issue.filePath) {
+                        <p class="text-xs mt-1 font-mono" style="color: var(--color-text-muted);">
+                          {{ issue.filePath }}@if (issue.lineNumber) {:{{ issue.lineNumber }}}
+                        </p>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Issue Detail Pane -->
+          @if (selectedIssue()) {
+            <div class="w-full md:w-1/2 xl:w-2/5 flex-shrink-0 rounded-2xl overflow-hidden sticky top-20 max-h-[calc(100vh-100px)] overflow-y-auto animate-slide-up"
+                 style="background: var(--color-surface); border: 1px solid var(--color-border);">
+
+              <!-- Header -->
+              <div class="p-4 flex items-start gap-3 sticky top-0" style="background: var(--color-surface); border-bottom: 1px solid var(--color-border);">
+                <button class="md:hidden text-surface-400 hover:text-white mt-0.5" (click)="selectedIssue.set(null)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                  </svg>
+                </button>
+                <div class="flex-1">
+                  <div class="flex gap-2 mb-2 flex-wrap">
+                    <app-severity-badge [severity]="selectedIssue()!.severity" />
+                    <app-severity-badge [group]="selectedIssue()!.group" />
+                  </div>
+                  <h3 class="text-sm font-semibold leading-snug" style="color: var(--color-text);">
+                    {{ selectedIssue()!.practice }}
+                  </h3>
+                </div>
+              </div>
+
+              <!-- Body -->
+              <div class="p-4 space-y-4">
+                <!-- File location -->
+                @if (selectedIssue()!.filePath) {
+                  <div class="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs"
+                       style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); color: var(--color-text-muted);">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <span class="text-brand-400">{{ selectedIssue()!.filePath }}</span>
+                    @if (selectedIssue()!.lineNumber) {
+                      <span>:{{ selectedIssue()!.lineNumber }}</span>
+                    }
+                  </div>
+                }
+
+                <!-- Explanation -->
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wider mb-2 text-brand-400">Explanation</p>
+                  <p class="text-sm leading-relaxed" style="color: var(--color-text-muted);">
+                    {{ selectedIssue()!.explanation }}
+                  </p>
+                </div>
+
+                <!-- Code snippet -->
+                @if (selectedIssue()!.codeSnippet) {
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider mb-2" style="color: var(--color-text-muted);">Current Code</p>
+                    <pre class="p-3 rounded-xl text-xs font-mono overflow-x-auto"
+                         style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); color: #fca5a5; line-height: 1.6;">{{ selectedIssue()!.codeSnippet }}</pre>
+                  </div>
+                }
+
+                <!-- Suggested fix -->
+                @if (selectedIssue()!.suggestedFix) {
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider mb-2 text-green-400">Suggested Fix</p>
+                    <p class="text-sm leading-relaxed" style="color: var(--color-text-muted);">
+                      {{ selectedIssue()!.suggestedFix }}
+                    </p>
+                  </div>
+                }
+
+                <!-- Fixed code -->
+                @if (selectedIssue()!.fixedCode) {
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider mb-2 text-green-400">Compliant Code</p>
+                    <pre class="p-3 rounded-xl text-xs font-mono overflow-x-auto"
+                         style="background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2); color: #86efac; line-height: 1.6;">{{ selectedIssue()!.fixedCode }}</pre>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <!-- Redirect state -->
+    <div class="flex items-center justify-center h-64">
+      <div class="text-center">
+        <p class="mb-4" style="color: var(--color-text-muted);">No audit results found.</p>
+        <a routerLink="/audit"
+           class="px-4 py-2 rounded-xl text-sm font-medium text-white"
+           style="background: linear-gradient(135deg, #1a5cff, #7c3aed);">
+          Start an Audit
+        </a>
+      </div>
+    </div>
+  }
+</div>

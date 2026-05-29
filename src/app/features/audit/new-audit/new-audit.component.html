@@ -1,9 +1,9 @@
 <div class="min-h-screen pt-20 px-4 pb-16" style="background: var(--color-bg);">
   <div class="max-w-3xl mx-auto">
 
-    <!-- Header -->
-    <div class="mb-10 pt-8">
-      <h1 class="font-display font-bold text-3xl text-white mb-2">New Audit</h1>
+    <!-- Page Header -->
+    <div class="mb-8 pt-8">
+      <h1 class="font-display font-bold text-3xl text-white mb-1">New Audit</h1>
       <p class="text-surface-400 text-sm">Paste any public GitHub repository URL to run a compliance scan.</p>
     </div>
 
@@ -34,6 +34,7 @@
             </span>
           </button>
         </div>
+
         @if (urlError()) {
           <p class="mt-2 text-xs text-red-400 flex items-center gap-1">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
@@ -62,7 +63,7 @@
     <!-- ── Scanning progress ── -->
     @if (isScanning && scanProgress) {
       <div class="rounded-2xl p-8 mb-4 text-center" style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
-        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 relative"
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
              style="background: linear-gradient(135deg, rgba(26,92,255,0.2), rgba(124,58,237,0.2));">
           <svg class="animate-spin" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a5cff" stroke-width="2">
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
@@ -70,105 +71,183 @@
         </div>
         <h2 class="font-display font-bold text-xl text-white mb-1">Scanning Repository</h2>
         <p class="text-surface-400 text-sm mb-6 font-mono truncate max-w-md mx-auto">{{ currentAudit?.repoName }}</p>
-
-        <!-- Progress bar -->
         <div class="w-full rounded-full h-2 mb-2 overflow-hidden" style="background: var(--color-surface);">
           <div class="h-2 rounded-full transition-all duration-500"
                style="background: linear-gradient(90deg, #1a5cff, #7c3aed);"
                [style.width.%]="scanProgress.progress"></div>
         </div>
-        <div class="flex justify-between text-xs text-surface-500 mb-6">
+        <div class="flex justify-between text-xs text-surface-500 mb-4">
           <span>{{ scanProgress.phase }}</span>
           <span>{{ scanProgress.progress }}%</span>
         </div>
-
         <p class="text-xs text-surface-500 font-mono truncate mb-6">{{ scanProgress.currentFile }}</p>
-
-        <button (click)="cancelScan()"
-                class="px-4 py-2 rounded-lg text-xs text-surface-400 hover:text-red-400 hover:bg-red-400/10 transition-all">
+        <button (click)="cancelScan()" class="px-4 py-2 rounded-lg text-xs text-surface-400 hover:text-red-400 hover:bg-red-400/10 transition-all">
           Cancel scan
         </button>
       </div>
     }
 
     <!-- ── Audit History ── -->
-    @if (auditHistory.length > 0 && !isScanning) {
+    @if (!isScanning) {
       <div class="mt-10">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-display font-semibold text-lg text-white">Previous Audits</h2>
-          <span class="text-xs text-surface-500">{{ auditHistory.length }} report{{ auditHistory.length === 1 ? '' : 's' }} stored locally</span>
-        </div>
 
-        <div class="flex flex-col gap-3">
-          @for (audit of auditHistory; track audit.id) {
-            <div class="rounded-xl p-4 transition-all group"
-                 style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+        <!-- History header with bulk actions -->
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <div class="flex items-center gap-3">
+            <h2 class="font-display font-semibold text-lg text-white">Previous Audits</h2>
+            @if (historyLoading) {
+              <svg class="animate-spin text-surface-500" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+            } @else {
+              <span class="text-xs text-surface-500">{{ auditHistory.length }} report{{ auditHistory.length === 1 ? '' : 's' }} in IndexedDB</span>
+            }
+          </div>
 
-              @if (confirmDeleteId() === audit.id) {
-                <!-- Delete confirmation inline -->
-                <div class="flex items-center justify-between">
-                  <p class="text-sm text-surface-300">Delete this report?</p>
-                  <div class="flex gap-2">
-                    <button (click)="cancelDelete()"
-                            class="px-3 py-1.5 rounded-lg text-xs text-surface-400 hover:bg-white/10 transition-all">
-                      Cancel
-                    </button>
-                    <button (click)="confirmDelete(audit.id)"
-                            class="px-3 py-1.5 rounded-lg text-xs text-white transition-all"
-                            style="background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.4);">
-                      Delete
-                    </button>
-                  </div>
+          @if (auditHistory.length > 0) {
+            <div class="flex items-center gap-2">
+
+              <!-- Select all toggle -->
+              <button (click)="toggleSelectAll()"
+                      class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:bg-white/10"
+                      style="border: 1px solid var(--color-border); color: var(--color-text-muted);">
+                <div class="w-3.5 h-3.5 rounded border flex items-center justify-center"
+                     [style.background]="allSelected ? '#1a5cff' : 'transparent'"
+                     [style.border-color]="allSelected ? '#1a5cff' : 'rgba(255,255,255,0.2)'">
+                  @if (allSelected) {
+                    <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg>
+                  }
                 </div>
-              } @else {
-                <div class="flex items-center gap-4">
+                {{ allSelected ? 'Deselect all' : 'Select all' }}
+              </button>
 
-                  <!-- Score ring -->
-                  <div class="w-12 h-12 rounded-xl flex-shrink-0 flex flex-col items-center justify-center font-mono font-bold text-sm"
-                       [style.background]="'rgba(' + (audit.overallScore >= 80 ? '34,197,94' : audit.overallScore >= 60 ? '245,158,11' : '239,68,68') + ',0.12)'"
-                       [style.color]="scoreColor(audit.overallScore)">
-                    {{ audit.overallScore }}
-                  </div>
-
-                  <!-- Repo info -->
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-0.5">
-                      <span class="font-mono text-sm text-white font-medium truncate">{{ audit.repoName }}</span>
-                      <span class="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
-                            [style.background]="'rgba(' + (audit.overallScore >= 80 ? '34,197,94' : audit.overallScore >= 60 ? '245,158,11' : '239,68,68') + ',0.15)'"
-                            [style.color]="scoreColor(audit.overallScore)">
-                        {{ scoreLabel(audit.overallScore) }}
-                      </span>
-                    </div>
-                    <div class="flex items-center gap-3 text-xs text-surface-500">
-                      <span>{{ audit.completedAt | date:'d MMM y, h:mm a' }}</span>
-                      <span class="text-red-400">{{ failCount(audit) }} fail{{ failCount(audit) === 1 ? '' : 's' }}</span>
-                      @if (criticalCount(audit) > 0) {
-                        <span class="text-red-500 font-semibold">{{ criticalCount(audit) }} critical</span>
-                      }
-                      <span>{{ audit.totalFiles }} files</span>
-                    </div>
-                  </div>
-
-                  <!-- Actions -->
-                  <div class="flex items-center gap-2 flex-shrink-0">
-                    <button (click)="viewHistoricalAudit(audit.id)"
-                            class="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all hover:brightness-110"
-                            style="background: linear-gradient(135deg, #1a5cff, #7c3aed);">
-                      View Report
-                    </button>
-                    <button (click)="requestDelete(audit.id)"
-                            class="w-7 h-7 rounded-lg flex items-center justify-center text-surface-600 hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+              <!-- Download selected -->
+              @if (hasSelection) {
+                <button (click)="downloadSelected()"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all hover:brightness-110"
+                        style="background: linear-gradient(135deg, #1a5cff, #7c3aed);">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Download {{ selectedIds().size === 1 ? 'report' : selectedIds().size + ' reports' }}
+                </button>
+                <button (click)="clearSelection()"
+                        class="text-xs text-surface-500 hover:text-white transition-all">
+                  Clear
+                </button>
               }
+
+              <!-- Phase 2 email badge -->
+              <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
+                   style="background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.25); color: #a78bfa;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                </svg>
+                Email export
+                <span class="px-1 py-0.5 rounded text-xs font-semibold" style="background: rgba(124,58,237,0.3); color: #c4b5fd;">Phase 2</span>
+              </div>
             </div>
           }
         </div>
+
+        @if (!historyLoading && auditHistory.length === 0) {
+          <div class="rounded-xl p-8 text-center" style="background: var(--color-surface-2); border: 1px dashed var(--color-border);">
+            <svg class="mx-auto mb-3 text-surface-600" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            <p class="text-surface-500 text-sm">No audits yet — run your first scan above.</p>
+          </div>
+        }
+
+        @if (auditHistory.length > 0) {
+          <div class="flex flex-col gap-2">
+            @for (audit of auditHistory; track audit.id) {
+              <div class="rounded-xl p-4 transition-all group"
+                   [class.ring-2]="isSelected(audit.id)"
+                   [style.ring-color]="isSelected(audit.id) ? '#1a5cff' : 'transparent'"
+                   [style.background]="isSelected(audit.id) ? 'rgba(26,92,255,0.06)' : 'var(--color-surface-2)'"
+                   style="border: 1px solid var(--color-border);"
+                   [style.border-color]="isSelected(audit.id) ? 'rgba(26,92,255,0.4)' : 'var(--color-border)'">
+
+                @if (confirmDeleteId() === audit.id) {
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm text-surface-300">Delete this report?</p>
+                    <div class="flex gap-2">
+                      <button (click)="cancelDelete()" class="px-3 py-1.5 rounded-lg text-xs text-surface-400 hover:bg-white/10 transition-all">Cancel</button>
+                      <button (click)="confirmDelete(audit.id)"
+                              class="px-3 py-1.5 rounded-lg text-xs text-white transition-all"
+                              style="background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.4);">Delete</button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="flex items-center gap-3">
+
+                    <!-- Checkbox -->
+                    <button (click)="toggleSelect(audit.id)"
+                            class="w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-all"
+                            [style.background]="isSelected(audit.id) ? '#1a5cff' : 'transparent'"
+                            [style.border-color]="isSelected(audit.id) ? '#1a5cff' : 'rgba(255,255,255,0.2)'">
+                      @if (isSelected(audit.id)) {
+                        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg>
+                      }
+                    </button>
+
+                    <!-- Score badge -->
+                    <div class="w-12 h-12 rounded-xl flex-shrink-0 flex flex-col items-center justify-center font-mono font-bold text-sm"
+                         [style.background]="'rgba(' + (audit.overallScore >= 80 ? '34,197,94' : audit.overallScore >= 60 ? '245,158,11' : '239,68,68') + ',0.12)'"
+                         [style.color]="scoreColor(audit.overallScore)">
+                      {{ audit.overallScore }}
+                    </div>
+
+                    <!-- Info -->
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 mb-0.5">
+                        <span class="font-mono text-sm text-white font-medium truncate">{{ audit.repoName }}</span>
+                        <span class="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+                              [style.background]="'rgba(' + (audit.overallScore >= 80 ? '34,197,94' : audit.overallScore >= 60 ? '245,158,11' : '239,68,68') + ',0.15)'"
+                              [style.color]="scoreColor(audit.overallScore)">
+                          {{ scoreLabel(audit.overallScore) }}
+                        </span>
+                      </div>
+                      <div class="flex items-center gap-3 text-xs text-surface-500 flex-wrap">
+                        <span>{{ audit.completedAt | date:'d MMM y, h:mm a' }}</span>
+                        <span class="text-red-400">{{ failCount(audit) }} fail{{ failCount(audit) === 1 ? '' : 's' }}</span>
+                        @if (criticalCount(audit) > 0) {
+                          <span class="text-red-500 font-semibold">{{ criticalCount(audit) }} critical</span>
+                        }
+                        <span>{{ audit.totalFiles }} files</span>
+                      </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                      <button (click)="viewAudit(audit.id)"
+                              class="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all hover:brightness-110"
+                              style="background: linear-gradient(135deg, #1a5cff, #7c3aed);">
+                        View
+                      </button>
+                      <button (click)="exportService.downloadSingle(audit)"
+                              class="w-7 h-7 rounded-lg flex items-center justify-center text-surface-500 hover:text-white hover:bg-white/10 transition-all"
+                              title="Download report">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                      </button>
+                      <button (click)="requestDelete(audit.id)"
+                              class="w-7 h-7 rounded-lg flex items-center justify-center text-surface-600 hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100"
+                              title="Delete report">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
       </div>
     }
 

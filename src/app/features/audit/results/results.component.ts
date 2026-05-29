@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuditService } from '../../../core/services/audit.service';
+import { ReportExportService } from '../../../core/services/report-export.service';
 import { SeverityBadgeComponent } from '../../../shared/components/severity-badge/severity-badge.component';
 import { AuditIssue } from '../../../core/models/audit.model';
 
@@ -14,8 +15,9 @@ import { AuditIssue } from '../../../core/models/audit.model';
   templateUrl: './results.component.html',
 })
 export class ResultsComponent implements OnInit {
-  protected auditService = inject(AuditService);
-  private router = inject(Router);
+  protected auditService    = inject(AuditService);
+  protected exportService   = inject(ReportExportService);
+  private router            = inject(Router);
 
   protected activeTab = signal<'matrix' | 'issues'>('matrix');
   protected selectedIssue = signal<AuditIssue | null>(null);
@@ -126,5 +128,10 @@ export class ResultsComponent implements OnInit {
   protected newAudit(): void {
     this.auditService.clearAudit();
     this.router.navigate(['/audit']);
+  }
+
+  protected downloadReport(): void {
+    const audit = this.auditService.currentAudit();
+    if (audit) this.exportService.downloadSingle(audit);
   }
 }

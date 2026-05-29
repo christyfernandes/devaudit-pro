@@ -29,6 +29,10 @@ export class LandingComponent implements OnInit {
     }
   }
 
+  protected scrollToGuidelines(): void {
+    document.getElementById('guidelines')?.scrollIntoView({ behavior: 'smooth' });
+  }
+
   protected get currentTopic(): ChecklistTopic | undefined {
     return this.checklistService.selectedTopic();
   }

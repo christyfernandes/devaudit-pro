@@ -1,39 +1,24 @@
-<div class="min-h-screen pt-20 pb-12 px-4" style="background: var(--color-bg);">
+<div class="min-h-screen pt-20 px-4 pb-16" style="background: var(--color-bg);">
   <div class="max-w-3xl mx-auto">
 
     <!-- Header -->
-    <div class="mb-10 animate-fade-in">
-      <div class="flex items-center gap-2 text-xs font-mono mb-4" style="color: var(--color-text-muted);">
-        <span>Dashboard</span>
-        <span>/</span>
-        <span style="color: var(--color-text);">New Audit</span>
-      </div>
-      <h1 class="font-display text-3xl font-bold mb-2" style="color: var(--color-text);">
-        Start a Repository Audit
-      </h1>
-      <p style="color: var(--color-text-muted);">
-        Scan a GitHub repository against the Frontend CoE checklist. 
-        Get a detailed report with severity breakdowns and fix suggestions.
-      </p>
+    <div class="mb-10 pt-8">
+      <h1 class="font-display font-bold text-3xl text-white mb-2">New Audit</h1>
+      <p class="text-surface-400 text-sm">Paste any public GitHub repository URL to run a compliance scan.</p>
     </div>
 
+    <!-- ── Scan card ── -->
     @if (!isScanning) {
-      <!-- Input Card -->
-      <div class="p-6 rounded-2xl mb-6 animate-slide-up"
-           style="background: var(--color-surface); border: 1px solid var(--color-border);">
-        <label class="block text-sm font-semibold mb-3" style="color: var(--color-text);">
-          GitHub Repository URL
-        </label>
-
+      <div class="rounded-2xl p-6 mb-4" style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+        <label class="block text-sm font-medium text-surface-300 mb-3">Repository URL</label>
         <div class="flex gap-3">
-          <div class="flex-1 relative">
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none"
-                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="relative flex-1">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
             </svg>
-            <input type="url" placeholder="https://github.com/owner/repository"
+            <input type="text" placeholder="https://github.com/owner/repository"
                    class="w-full pl-10 pr-4 py-3 rounded-xl text-sm outline-none transition-all font-mono"
-                   style="background: var(--color-surface-2); border: 1px solid var(--color-border); color: var(--color-text);"
+                   style="background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);"
                    [(ngModel)]="repoUrlValue"
                    (ngModelChange)="setRepo($event)"
                    (keyup.enter)="validateAndScan()" />
@@ -49,100 +34,143 @@
             </span>
           </button>
         </div>
-
         @if (urlError()) {
-          <p class="mt-2 text-xs text-red-400">{{ urlError() }}</p>
+          <p class="mt-2 text-xs text-red-400 flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            {{ urlError() }}
+          </p>
         }
-      </div>
 
-      <!-- Quick examples -->
-      <div class="animate-fade-in">
-        <p class="text-xs font-medium mb-3" style="color: var(--color-text-muted);">Try with a popular repo:</p>
-        <div class="flex gap-2 flex-wrap">
-          @for (repo of popularRepos; track repo.url) {
-            <button (click)="setRepo(repo.url)"
-                    class="flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all hover:bg-white/10"
-                    style="background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
-              </svg>
-              {{ repo.name }}
-              <span class="text-xs px-1.5 py-0.5 rounded"
-                    style="background: rgba(26, 92, 255, 0.1); color: #4a7fff;">{{ repo.type }}</span>
-            </button>
-          }
-        </div>
-      </div>
-
-      <!-- What we scan -->
-      <div class="mt-8 p-5 rounded-2xl animate-fade-in"
-           style="background: var(--color-surface); border: 1px solid var(--color-border);">
-        <h3 class="text-sm font-semibold mb-4" style="color: var(--color-text);">What gets scanned</h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          @for (item of ['Code Quality', 'TypeScript', 'Performance', 'Accessibility', 'Security', 'Testing', 'Angular Patterns', 'NFRs']; track item) {
-            <div class="flex items-center gap-2 text-xs" style="color: var(--color-text-muted);">
-              <svg class="text-brand-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="20,6 9,17 4,12"/>
-              </svg>
-              {{ item }}
-            </div>
-          }
+        <!-- Popular repos -->
+        <div class="mt-4 pt-4" style="border-top: 1px solid var(--color-border);">
+          <p class="text-xs text-surface-500 mb-3">Try a popular repo:</p>
+          <div class="flex flex-wrap gap-2">
+            @for (repo of popularRepos; track repo.name) {
+              <button (click)="setRepo(repo.url)"
+                      class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:bg-white/10"
+                      style="background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text-muted);">
+                <span class="text-xs px-1 py-0.5 rounded font-mono" style="background: rgba(26,92,255,0.15); color: #4a7fff;">{{ repo.type }}</span>
+                {{ repo.name }}
+                <span class="text-surface-600">★ {{ repo.stars }}</span>
+              </button>
+            }
+          </div>
         </div>
       </div>
     }
 
-    <!-- Scanning State -->
+    <!-- ── Scanning progress ── -->
     @if (isScanning && scanProgress) {
-      <div class="animate-fade-in">
-        <div class="p-8 rounded-2xl mb-6"
-             style="background: var(--color-surface); border: 1px solid var(--color-border);">
+      <div class="rounded-2xl p-8 mb-4 text-center" style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 relative"
+             style="background: linear-gradient(135deg, rgba(26,92,255,0.2), rgba(124,58,237,0.2));">
+          <svg class="animate-spin" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a5cff" stroke-width="2">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+        </div>
+        <h2 class="font-display font-bold text-xl text-white mb-1">Scanning Repository</h2>
+        <p class="text-surface-400 text-sm mb-6 font-mono truncate max-w-md mx-auto">{{ currentAudit?.repoName }}</p>
 
-          <!-- Animated scanner icon -->
-          <div class="flex justify-center mb-6">
-            <div class="relative w-16 h-16">
-              <div class="absolute inset-0 rounded-full border-2 border-brand-500/30"></div>
-              <div class="absolute inset-0 rounded-full border-2 border-t-brand-500 animate-spin"></div>
-              <div class="absolute inset-2 rounded-full border border-brand-500/20"></div>
-              <div class="absolute inset-0 flex items-center justify-center">
-                <svg class="text-brand-400" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <h2 class="font-display text-lg font-bold text-center mb-1" style="color: var(--color-text);">
-            Scanning Repository
-          </h2>
-          <p class="text-center text-sm mb-6" style="color: var(--color-text-muted);">
-            {{ scanProgress.phase }}
-          </p>
-
-          <!-- Progress Bar -->
-          <div class="mb-4">
-            <div class="flex justify-between text-xs font-mono mb-1" style="color: var(--color-text-muted);">
-              <span>{{ scanProgress.filesScanned }} / {{ scanProgress.totalFiles }} files</span>
-              <span>{{ scanProgress.progress }}%</span>
-            </div>
-            <div class="w-full h-2 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.05);">
-              <div class="h-full rounded-full transition-all duration-300"
-                   style="background: linear-gradient(135deg, #1a5cff, #7c3aed);"
-                   [style.width]="scanProgress.progress + '%'"></div>
-            </div>
-          </div>
-
-          <!-- Current file -->
-          <div class="p-3 rounded-xl font-mono text-xs"
-               style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); color: var(--color-text-muted);">
-            <span class="text-brand-400 mr-2">→</span>{{ scanProgress.currentFile }}
-          </div>
+        <!-- Progress bar -->
+        <div class="w-full rounded-full h-2 mb-2 overflow-hidden" style="background: var(--color-surface);">
+          <div class="h-2 rounded-full transition-all duration-500"
+               style="background: linear-gradient(90deg, #1a5cff, #7c3aed);"
+               [style.width.%]="scanProgress.progress"></div>
+        </div>
+        <div class="flex justify-between text-xs text-surface-500 mb-6">
+          <span>{{ scanProgress.phase }}</span>
+          <span>{{ scanProgress.progress }}%</span>
         </div>
 
+        <p class="text-xs text-surface-500 font-mono truncate mb-6">{{ scanProgress.currentFile }}</p>
+
         <button (click)="cancelScan()"
-                class="w-full py-2 text-sm text-surface-400 hover:text-red-400 transition-colors">
+                class="px-4 py-2 rounded-lg text-xs text-surface-400 hover:text-red-400 hover:bg-red-400/10 transition-all">
           Cancel scan
         </button>
       </div>
     }
+
+    <!-- ── Audit History ── -->
+    @if (auditHistory.length > 0 && !isScanning) {
+      <div class="mt-10">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-display font-semibold text-lg text-white">Previous Audits</h2>
+          <span class="text-xs text-surface-500">{{ auditHistory.length }} report{{ auditHistory.length === 1 ? '' : 's' }} stored locally</span>
+        </div>
+
+        <div class="flex flex-col gap-3">
+          @for (audit of auditHistory; track audit.id) {
+            <div class="rounded-xl p-4 transition-all group"
+                 style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+
+              @if (confirmDeleteId() === audit.id) {
+                <!-- Delete confirmation inline -->
+                <div class="flex items-center justify-between">
+                  <p class="text-sm text-surface-300">Delete this report?</p>
+                  <div class="flex gap-2">
+                    <button (click)="cancelDelete()"
+                            class="px-3 py-1.5 rounded-lg text-xs text-surface-400 hover:bg-white/10 transition-all">
+                      Cancel
+                    </button>
+                    <button (click)="confirmDelete(audit.id)"
+                            class="px-3 py-1.5 rounded-lg text-xs text-white transition-all"
+                            style="background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.4);">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              } @else {
+                <div class="flex items-center gap-4">
+
+                  <!-- Score ring -->
+                  <div class="w-12 h-12 rounded-xl flex-shrink-0 flex flex-col items-center justify-center font-mono font-bold text-sm"
+                       [style.background]="'rgba(' + (audit.overallScore >= 80 ? '34,197,94' : audit.overallScore >= 60 ? '245,158,11' : '239,68,68') + ',0.12)'"
+                       [style.color]="scoreColor(audit.overallScore)">
+                    {{ audit.overallScore }}
+                  </div>
+
+                  <!-- Repo info -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-0.5">
+                      <span class="font-mono text-sm text-white font-medium truncate">{{ audit.repoName }}</span>
+                      <span class="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+                            [style.background]="'rgba(' + (audit.overallScore >= 80 ? '34,197,94' : audit.overallScore >= 60 ? '245,158,11' : '239,68,68') + ',0.15)'"
+                            [style.color]="scoreColor(audit.overallScore)">
+                        {{ scoreLabel(audit.overallScore) }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-surface-500">
+                      <span>{{ audit.completedAt | date:'d MMM y, h:mm a' }}</span>
+                      <span class="text-red-400">{{ failCount(audit) }} fail{{ failCount(audit) === 1 ? '' : 's' }}</span>
+                      @if (criticalCount(audit) > 0) {
+                        <span class="text-red-500 font-semibold">{{ criticalCount(audit) }} critical</span>
+                      }
+                      <span>{{ audit.totalFiles }} files</span>
+                    </div>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <button (click)="viewHistoricalAudit(audit.id)"
+                            class="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all hover:brightness-110"
+                            style="background: linear-gradient(135deg, #1a5cff, #7c3aed);">
+                      View Report
+                    </button>
+                    <button (click)="requestDelete(audit.id)"
+                            class="w-7 h-7 rounded-lg flex items-center justify-center text-surface-600 hover:text-red-400 hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+
   </div>
 </div>

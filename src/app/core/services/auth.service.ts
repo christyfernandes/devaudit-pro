@@ -38,9 +38,9 @@ export class AuthService {
       const user: User = {
         id: 'usr-001',
         email,
-        name: 'Alex Reviewer',
+        name: 'Christy Fernandes',
         role: 'reviewer',
-        avatar: 'AR'
+        avatar: 'CF'
       };
       this._user.set(user);
       localStorage.setItem('devaudit_user', JSON.stringify(user));

@@ -91,6 +91,15 @@
             <span class="ml-1.5 px-1.5 py-0.5 rounded text-xs badge-critical">{{ issueCountByStatus.fail }}</span>
           }
         </button>
+        <button class="px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5"
+                [ngClass]="activeTab() === 'tools' ? 'bg-brand-600/30 text-white border border-brand-500/40' : 'text-surface-400 hover:text-white'"
+                (click)="activeTab.set('tools')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          Live Tools
+          <span class="text-xs px-1 py-0.5 rounded font-semibold" style="background:rgba(124,58,237,0.25);color:#a78bfa;">8</span>
+        </button>
       </div>
 
       <!-- SUMMARY MATRIX TAB -->
@@ -323,6 +332,315 @@
     <!-- Redirect state -->
     <div class="flex items-center justify-center h-64">
       <div class="text-center">
+
+      <!-- ══ TOOLS TAB ══════════════════════════════════════════════════ -->
+      @if (activeTab() === 'tools') {
+        <div class="animate-fade-in">
+
+          <!-- Context banner -->
+          <div class="rounded-xl p-4 mb-6 flex gap-3"
+               style="background: rgba(26,92,255,0.08); border: 1px solid rgba(26,92,255,0.2);">
+            <svg class="text-brand-400 flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+            </svg>
+            <div>
+              <p class="text-sm font-medium text-white mb-0.5">These tools audit a live deployed URL, not the repository</p>
+              <p class="text-xs" style="color: var(--color-text-muted);">
+                The static analysis above checks source code. These tools load and execute the actual app to measure
+                real performance, accessibility, and security — they complement each other.
+              </p>
+            </div>
+          </div>
+
+          <!-- URL input row -->
+          <div class="rounded-xl p-4 mb-6" style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+            <label class="block text-xs font-medium text-surface-400 mb-2">Live deployment URL</label>
+            <div class="flex gap-2 flex-wrap">
+              <div class="relative flex-1 min-w-0">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                <input type="url" placeholder="https://your-app.github.io/project/"
+                       class="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm outline-none font-mono"
+                       style="background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);"
+                       [(ngModel)]="liveUrlValue"
+                       (ngModelChange)="setLiveUrl($event)"
+                       (keyup.enter)="runAll()" />
+              </div>
+              <!-- Strategy toggle -->
+              <div class="flex rounded-lg overflow-hidden flex-shrink-0"
+                   style="border: 1px solid var(--color-border);">
+                <button (click)="strategy.set('mobile')"
+                        class="px-3 py-2 text-xs font-medium transition-all flex items-center gap-1"
+                        [style.background]="strategy() === 'mobile' ? 'rgba(26,92,255,0.2)' : 'transparent'"
+                        [style.color]="strategy() === 'mobile' ? '#4a7fff' : 'var(--color-text-muted)'">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                  </svg>
+                  Mobile
+                </button>
+                <button (click)="strategy.set('desktop')"
+                        class="px-3 py-2 text-xs font-medium transition-all flex items-center gap-1"
+                        [style.background]="strategy() === 'desktop' ? 'rgba(26,92,255,0.2)' : 'transparent'"
+                        [style.color]="strategy() === 'desktop' ? '#4a7fff' : 'var(--color-text-muted)'">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                  </svg>
+                  Desktop
+                </button>
+              </div>
+              <button (click)="runAll()"
+                      class="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:brightness-110 active:scale-95 flex items-center gap-2 flex-shrink-0"
+                      style="background: linear-gradient(135deg, #1a5cff, #7c3aed);"
+                      [disabled]="lhStatus() === 'running' || obsStatus() === 'running'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                Run All
+              </button>
+            </div>
+            @if (liveUrlError()) {
+              <p class="mt-2 text-xs text-red-400">{{ liveUrlError() }}</p>
+            }
+          </div>
+
+          <!-- Tool cards grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+
+            <!-- ── Lighthouse card ── -->
+            <div class="rounded-xl overflow-hidden" style="border: 1px solid var(--color-border);">
+              <div class="flex items-center justify-between px-4 py-3"
+                   style="background: var(--color-surface-2); border-bottom: 1px solid var(--color-border);">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">⚡</span>
+                  <div>
+                    <div class="text-sm font-semibold text-white">Google Lighthouse</div>
+                    <div class="text-xs" style="color:var(--color-text-muted);">via PageSpeed Insights API</div>
+                  </div>
+                </div>
+                <button (click)="runLighthouse()"
+                        [disabled]="lhStatus() === 'running'"
+                        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                        [style.background]="lhStatus() === 'running' ? 'rgba(255,255,255,0.05)' : 'rgba(26,92,255,0.15)'"
+                        [style.color]="lhStatus() === 'running' ? 'var(--color-text-muted)' : '#4a7fff'">
+                  {{ lhStatus() === 'running' ? 'Running…' : 'Run' }}
+                </button>
+              </div>
+              <div class="p-4" style="background: var(--color-surface);">
+
+                @if (lhStatus() === 'idle') {
+                  <div class="py-6 text-center">
+                    <p class="text-sm" style="color:var(--color-text-muted);">Measures Performance, Accessibility, Best Practices, and SEO against your live deployment.</p>
+                  </div>
+                }
+
+                @if (lhStatus() === 'running') {
+                  <div class="py-6 text-center">
+                    <svg class="animate-spin mx-auto mb-3 text-brand-400" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    <p class="text-xs font-mono" style="color:var(--color-text-muted);">{{ lhProgress() }}</p>
+                    <p class="text-xs mt-1" style="color:var(--color-text-muted);">This takes 15–30 seconds…</p>
+                  </div>
+                }
+
+                @if (lhStatus() === 'error') {
+                  <div class="py-4">
+                    <p class="text-sm text-red-400 mb-3">{{ lhError() }}</p>
+                    <a [href]="lhPageSpeedUrl()" target="_blank" rel="noopener"
+                       class="text-xs text-brand-400 hover:underline flex items-center gap-1">
+                      Run on PageSpeed Insights instead
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </a>
+                  </div>
+                }
+
+                @if (lhStatus() === 'done' && lhReport()) {
+                  <!-- Category scores -->
+                  <div class="grid grid-cols-2 gap-2 mb-4">
+                    @for (cat of lhReport()!.categories; track cat.id) {
+                      <div class="rounded-lg p-3 text-center"
+                           style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+                        <div class="text-2xl font-bold font-mono leading-none mb-1"
+                             [style.color]="lhScoreColor(cat.score)">
+                          {{ lhScorePct(cat.score) }}
+                        </div>
+                        <div class="text-xs" style="color:var(--color-text-muted);">{{ cat.title }}</div>
+                      </div>
+                    }
+                  </div>
+
+                  <!-- Core Web Vitals table -->
+                  <div class="mb-4">
+                    <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:var(--color-text-muted);">Core Web Vitals</div>
+                    <div class="grid grid-cols-3 gap-1.5">
+                      @for (m of lhReport()!.coreWebVitals; track m.id) {
+                        <div class="rounded-lg px-2 py-2 text-center"
+                             style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+                          <div class="text-xs font-mono font-semibold mb-0.5"
+                               [style.color]="lhScoreColor(m.score)">{{ m.displayValue }}</div>
+                          <div class="text-xs" style="color:var(--color-text-muted);">{{ cwvShortTitle(m.id) }}</div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Failing audits -->
+                  @if (lhReport()!.failingAudits.length > 0) {
+                    <div class="mb-3">
+                      <div class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:var(--color-text-muted);">Top Issues</div>
+                      <div class="flex flex-col gap-1">
+                        @for (a of lhReport()!.failingAudits; track a.id) {
+                          <div class="flex items-start gap-2 py-1.5 px-2 rounded-lg"
+                               style="background: var(--color-surface-2);">
+                            <div class="w-4 h-4 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-xs font-bold"
+                                 [style.background]="'rgba(' + (a.score! >= 0.5 ? '245,158,11' : '239,68,68') + ',0.15)'"
+                                 [style.color]="lhScoreColor(a.score ?? 0)">
+                              {{ lhScorePct(a.score ?? 0) }}
+                            </div>
+                            <div class="text-xs leading-tight" style="color:var(--color-text);">{{ a.title }}</div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <a [href]="lhPageSpeedUrl()" target="_blank" rel="noopener"
+                     class="text-xs text-brand-400 hover:underline flex items-center gap-1 mt-2">
+                    View full report on PageSpeed Insights
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>
+                }
+              </div>
+            </div>
+
+            <!-- ── Observatory card ── -->
+            <div class="rounded-xl overflow-hidden" style="border: 1px solid var(--color-border);">
+              <div class="flex items-center justify-between px-4 py-3"
+                   style="background: var(--color-surface-2); border-bottom: 1px solid var(--color-border);">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">🦊</span>
+                  <div>
+                    <div class="text-sm font-semibold text-white">Mozilla HTTP Observatory</div>
+                    <div class="text-xs" style="color:var(--color-text-muted);">Security headers & HTTPS audit</div>
+                  </div>
+                </div>
+                <button (click)="runObservatory()"
+                        [disabled]="obsStatus() === 'running'"
+                        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                        [style.background]="obsStatus() === 'running' ? 'rgba(255,255,255,0.05)' : 'rgba(26,92,255,0.15)'"
+                        [style.color]="obsStatus() === 'running' ? 'var(--color-text-muted)' : '#4a7fff'">
+                  {{ obsStatus() === 'running' ? 'Running…' : 'Run' }}
+                </button>
+              </div>
+              <div class="p-4" style="background: var(--color-surface);">
+
+                @if (obsStatus() === 'idle') {
+                  <div class="py-6 text-center">
+                    <p class="text-sm" style="color:var(--color-text-muted);">Checks Content-Security-Policy, HSTS, cookies, CORS, referrer policy, and 8 other security headers.</p>
+                  </div>
+                }
+
+                @if (obsStatus() === 'running') {
+                  <div class="py-6 text-center">
+                    <svg class="animate-spin mx-auto mb-3 text-brand-400" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    <p class="text-xs font-mono" style="color:var(--color-text-muted);">{{ obsProgress() }}</p>
+                    <p class="text-xs mt-1" style="color:var(--color-text-muted);">30–40 seconds on first scan…</p>
+                  </div>
+                }
+
+                @if (obsStatus() === 'error') {
+                  <div class="py-4">
+                    <p class="text-sm text-red-400 mb-3">{{ obsError() }}</p>
+                    @if (obsReport() === null) {
+                      <a [href]="'https://observatory.mozilla.org/analyze/' + (liveUrl() ? '' : '')" target="_blank" rel="noopener"
+                         class="text-xs text-brand-400 hover:underline flex items-center gap-1">
+                        Run on Mozilla Observatory instead
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      </a>
+                    }
+                  </div>
+                }
+
+                @if (obsStatus() === 'done' && obsReport()) {
+                  <!-- Grade + score -->
+                  <div class="flex items-center gap-4 mb-4 p-3 rounded-xl"
+                       style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+                    <div class="text-5xl font-black font-mono leading-none"
+                         [style.color]="obsGradeColor(obsReport()!.grade)">
+                      {{ obsReport()!.grade }}
+                    </div>
+                    <div>
+                      <div class="text-sm text-white font-semibold">Score: {{ obsReport()!.score }}</div>
+                      <div class="text-xs mt-0.5">
+                        <span class="text-green-400">{{ obsReport()!.testsPassed }} passed</span>
+                        <span class="text-surface-500 mx-1">·</span>
+                        <span [class]="obsReport()!.testsFailed > 0 ? 'text-red-400' : 'text-surface-500'">
+                          {{ obsReport()!.testsFailed }} failed
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Tests list -->
+                  <div class="flex flex-col gap-1 mb-3 max-h-52 overflow-y-auto">
+                    @for (test of obsReport()!.tests; track test.key) {
+                      <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                           style="background: var(--color-surface-2);">
+                        <div class="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center text-xs"
+                             [style.background]="test.pass ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'"
+                             [style.color]="test.pass ? '#22c55e' : '#ef4444'">
+                          {{ test.pass ? '✓' : '✗' }}
+                        </div>
+                        <div class="text-xs flex-1" style="color:var(--color-text);">{{ test.title }}</div>
+                        @if (test.scoreModifier < 0) {
+                          <div class="text-xs font-mono text-red-400 flex-shrink-0">{{ test.scoreModifier }}</div>
+                        }
+                      </div>
+                    }
+                  </div>
+
+                  <a [href]="obsReport()!.scanUrl" target="_blank" rel="noopener"
+                     class="text-xs text-brand-400 hover:underline flex items-center gap-1">
+                    View full report on Mozilla Observatory
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>
+                }
+              </div>
+            </div>
+
+          </div><!-- /grid -->
+
+          <!-- ── External tools strip ── -->
+          <div>
+            <div class="flex items-center gap-2 mb-3">
+              <div class="text-xs font-semibold uppercase tracking-wider" style="color:var(--color-text-muted);">More Tools</div>
+              <div class="flex-1 h-px" style="background:var(--color-border);"></div>
+              <div class="text-xs" style="color:var(--color-text-muted);">open in new tab</div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              @for (tool of externalTools; track tool.name) {
+                <a [href]="tool.buildUrl(liveUrl() || 'https://example.com')"
+                   target="_blank" rel="noopener"
+                   class="rounded-xl p-3 flex flex-col gap-1.5 transition-all hover:bg-white/5 group"
+                   style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+                  <div class="flex items-center justify-between">
+                    <span class="text-lg leading-none">{{ tool.icon }}</span>
+                    <span class="text-xs px-1.5 py-0.5 rounded font-medium"
+                          style="background: rgba(26,92,255,0.12); color: #4a7fff;">{{ tool.category }}</span>
+                  </div>
+                  <div class="text-xs font-semibold text-white group-hover:text-brand-300 transition-colors">{{ tool.name }}</div>
+                  <div class="text-xs leading-snug" style="color:var(--color-text-muted);">{{ tool.description }}</div>
+                </a>
+              }
+            </div>
+          </div>
+
+        </div>
+      }<!-- /tools tab -->
+
         <p class="mb-4" style="color: var(--color-text-muted);">No audit results found.</p>
         <a routerLink="/audit"
            class="px-4 py-2 rounded-xl text-sm font-medium text-white"

@@ -20,11 +20,20 @@ export class NewAuditComponent {
   protected exportService = inject(ReportExportService);
   private router          = inject(Router);
 
-  protected repoUrl       = signal('');
-  protected repoUrlValue  = '';
-  protected urlError      = signal<string | null>(null);
+  protected repoUrl         = signal('');
+  protected repoUrlValue    = '';
+  protected urlError        = signal<string | null>(null);
   protected confirmDeleteId = signal<string | null>(null);
-  protected selectedIds   = signal<Set<string>>(new Set());
+  protected selectedIds     = signal<Set<string>>(new Set());
+
+  // Duplicate detection — all previous scans of the same repo URL
+  protected existingScans = computed(() => {
+    const url = this.repoUrl().trim().replace(/\/$/, '').toLowerCase();
+    if (!url) return [];
+    return this.auditService.auditHistory().filter(a =>
+      a.repoUrl.replace(/\/$/, '').toLowerCase() === url
+    );
+  });
 
   // Derived
   protected get auditHistory()    { return this.auditService.auditHistory(); }

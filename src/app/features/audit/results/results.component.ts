@@ -34,6 +34,7 @@ export class ResultsComponent implements OnInit {
   protected searchQueryValue = '';
   protected filterSeverity  = signal<string[]>([]);
   protected filterStatus    = signal<string[]>(['fail', 'warning']);
+  protected showDownloadMenu = signal(false);
 
   // ── Tools tab state ────────────────────────────────────────────────────────
   protected liveUrl         = signal('');
@@ -280,8 +281,14 @@ export class ResultsComponent implements OnInit {
     this.router.navigate(['/audit']);
   }
 
-  protected downloadReport(): void {
+  protected downloadReport(format: 'html' | 'pdf' = 'html'): void {
     const audit = this.auditService.currentAudit();
-    if (audit) this.exportService.downloadSingle(audit);
+    if (!audit) return;
+    this.showDownloadMenu.set(false);
+    if (format === 'html') {
+      this.exportService.downloadSingle(audit);
+    } else {
+      this.exportService.printAsPdf(audit);
+    }
   }
 }

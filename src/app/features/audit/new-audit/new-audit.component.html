@@ -42,6 +42,35 @@
           </p>
         }
 
+        @if (existingScans().length > 0 && !urlError()) {
+          <div class="mt-3 rounded-xl p-3 flex items-start gap-3"
+               style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);">
+            <svg class="flex-shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+            </svg>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-medium" style="color: #f59e0b;">
+                Already scanned {{ existingScans().length === 1 ? 'once' : existingScans().length + ' times' }}
+              </p>
+              <p class="text-xs mt-0.5" style="color: var(--color-text-muted);">
+                Last run:
+                <span class="font-mono text-white">{{ existingScans()[0].branch }}</span>
+                branch ·
+                score {{ existingScans()[0].overallScore }}/100 ·
+                {{ failCount(existingScans()[0]) }} fail{{ failCount(existingScans()[0]) === 1 ? '' : 's' }}
+              </p>
+              <div class="flex gap-2 mt-2">
+                <button (click)="viewAudit(existingScans()[0].id)"
+                        class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all hover:brightness-110"
+                        style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);">
+                  View last report
+                </button>
+                <span class="text-xs self-center" style="color:var(--color-text-muted);">or continue scanning below to create a new one</span>
+              </div>
+            </div>
+          </div>
+        }
+
         <!-- Popular repos -->
         <div class="mt-4 pt-4" style="border-top: 1px solid var(--color-border);">
           <p class="text-xs text-surface-500 mb-3">Try a popular repo:</p>
@@ -111,13 +140,13 @@
               <button (click)="toggleSelectAll()"
                       class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:bg-white/10"
                       style="border: 1px solid var(--color-border); color: var(--color-text-muted);">
-                <div class="w-3.5 h-3.5 rounded border flex items-center justify-center"
+                <span class="w-3.5 h-3.5 rounded border flex items-center justify-center"
                      [style.background]="allSelected ? '#1a5cff' : 'transparent'"
                      [style.border-color]="allSelected ? '#1a5cff' : 'rgba(255,255,255,0.2)'">
                   @if (allSelected) {
                     <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg>
                   }
-                </div>
+                </span>
                 {{ allSelected ? 'Deselect all' : 'Select all' }}
               </button>
 
@@ -183,14 +212,14 @@
                   <div class="flex items-center gap-3">
 
                     <!-- Checkbox -->
-                    <button (click)="toggleSelect(audit.id)"
-                            class="w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-all"
+                    <span (click)="toggleSelect(audit.id)"
+                            class="w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-all cursor-pointer"
                             [style.background]="isSelected(audit.id) ? '#1a5cff' : 'transparent'"
                             [style.border-color]="isSelected(audit.id) ? '#1a5cff' : 'rgba(255,255,255,0.2)'">
                       @if (isSelected(audit.id)) {
                         <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg>
                       }
-                    </button>
+                    </span>
 
                     <!-- Score badge -->
                     <div class="w-12 h-12 rounded-xl flex-shrink-0 flex flex-col items-center justify-center font-mono font-bold text-sm"
@@ -201,12 +230,20 @@
 
                     <!-- Info -->
                     <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2 mb-0.5">
+                      <div class="flex items-center gap-2 mb-0.5 flex-wrap">
                         <span class="font-mono text-sm text-white font-medium truncate">{{ audit.repoName }}</span>
                         <span class="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
                               [style.background]="'rgba(' + (audit.overallScore >= 80 ? '34,197,94' : audit.overallScore >= 60 ? '245,158,11' : '239,68,68') + ',0.15)'"
                               [style.color]="scoreColor(audit.overallScore)">
                           {{ scoreLabel(audit.overallScore) }}
+                        </span>
+                        <span class="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md font-mono flex-shrink-0"
+                              style="background:rgba(139,92,246,0.12);color:#a78bfa;border:1px solid rgba(139,92,246,0.2);">
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+                            <path d="M18 9a9 9 0 0 1-9 9"/>
+                          </svg>
+                          {{ audit.branch }}
                         </span>
                       </div>
                       <div class="flex items-center gap-3 text-xs text-surface-500 flex-wrap">

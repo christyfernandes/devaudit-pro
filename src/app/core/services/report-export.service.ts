@@ -6,6 +6,19 @@ export class ReportExportService {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
+  /** Open report in a print-ready window so user can Save as PDF */
+  printAsPdf(audit: AuditReport): void {
+    const html = this.buildHtml([audit], `${audit.repoName.replace(/\//g, '-')} — Audit Report`);
+    const win = window.open('', '_blank');
+    if (!win) {
+      // Popup blocked — fall back to HTML download
+      this.downloadSingle(audit);
+      return;
+    }
+    win.document.write(html + '<script>window.onload=()=>window.print();<\/script>');
+    win.document.close();
+  }
+
   /** Download a single audit report as a self-contained HTML file */
   downloadSingle(audit: AuditReport): void {
     const slug = audit.repoName.replace(/\//g, '-');

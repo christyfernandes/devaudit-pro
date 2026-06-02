@@ -15,6 +15,17 @@ import { CHECKLIST_DATA } from '../../../core/services/checklist.data';
 
 type ActiveTab = 'matrix' | 'issues' | 'tools';
 
+interface DiffLine {
+  type: 'removed' | 'added' | 'context';
+  old: string;
+  next: string;
+}
+
+interface DiffPair {
+  left:  { text: string; kind: 'removed' | 'context' | 'empty' };
+  right: { text: string; kind: 'added'   | 'context' | 'empty' };
+}
+
 @Component({
   selector: 'app-results',
   standalone: true,
@@ -104,6 +115,113 @@ export class ResultsComponent implements OnInit {
   protected get matrixTopics()   { return Object.entries(this.summaryMatrix); }
   protected showCoverage         = signal(true);  // open by default
   protected expandedTopics       = signal<Set<string>>(new Set());
+
+  // ── Phase 2: Diff View ─────────────────────────────────────────────────────
+  protected diffMode             = signal<'details' | 'diff'>('details');
+  protected diffPatchCopied      = signal(false);
+
+  protected get diffPairs(): DiffPair[] {
+    const issue = this.selectedIssue();
+    if (!issue?.codeSnippet || !issue?.fixedCode) return [];
+    const lines = this.computeDiff(issue.codeSnippet, issue.fixedCode);
+    return this.toDiffPairs(lines);
+  }
+
+  protected downloadPatch(): void {
+    const issue = this.selectedIssue();
+    if (!issue?.codeSnippet || !issue?.fixedCode) return;
+    const patch = this.buildPatch(issue);
+    const slug  = (issue.filePath ?? 'fix').replace(/\//g, '-').replace(/\./g, '-');
+    const blob  = new Blob([patch], { type: 'text/plain' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    a.href = url; a.download = `devaudit-${slug}.patch`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  protected copyPatch(): void {
+    const issue = this.selectedIssue();
+    if (!issue?.codeSnippet || !issue?.fixedCode) return;
+    navigator.clipboard.writeText(this.buildPatch(issue)).then(() => {
+      this.diffPatchCopied.set(true);
+      setTimeout(() => this.diffPatchCopied.set(false), 2000);
+    });
+  }
+
+  private computeDiff(oldText: string, newText: string): DiffLine[] {
+    const o = oldText.split('\n');
+    const n = newText.split('\n');
+    const m = o.length, k = n.length;
+    // DP table for LCS
+    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(k + 1).fill(0));
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= k; j++) {
+        dp[i][j] = o[i - 1].trim() === n[j - 1].trim()
+          ? dp[i - 1][j - 1] + 1
+          : Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    // Iterative backtrack
+    const result: DiffLine[] = [];
+    let i = m, j = k;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && o[i - 1].trim() === n[j - 1].trim()) {
+        result.unshift({ type: 'context', old: o[i - 1], next: n[j - 1] });
+        i--; j--;
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        result.unshift({ type: 'added', old: '', next: n[j - 1] });
+        j--;
+      } else {
+        result.unshift({ type: 'removed', old: o[i - 1], next: '' });
+        i--;
+      }
+    }
+    return result;
+  }
+
+  private toDiffPairs(lines: DiffLine[]): DiffPair[] {
+    const pairs: DiffPair[] = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (line.type === 'context') {
+        pairs.push({ left: { text: line.old,  kind: 'context' }, right: { text: line.next, kind: 'context' } });
+        i++;
+      } else if (line.type === 'removed') {
+        if (i + 1 < lines.length && lines[i + 1].type === 'added') {
+          pairs.push({ left: { text: line.old, kind: 'removed' }, right: { text: lines[i + 1].next, kind: 'added' } });
+          i += 2;
+        } else {
+          pairs.push({ left: { text: line.old, kind: 'removed' }, right: { text: '', kind: 'empty' } });
+          i++;
+        }
+      } else {
+        pairs.push({ left: { text: '', kind: 'empty' }, right: { text: line.next, kind: 'added' } });
+        i++;
+      }
+    }
+    return pairs;
+  }
+
+  private buildPatch(issue: AuditIssue): string {
+    const file    = issue.filePath ?? 'unknown/file.ts';
+    const lineNum = issue.lineNumber ?? 1;
+    const old     = (issue.codeSnippet ?? '').split('\n');
+    const next    = (issue.fixedCode ?? '').split('\n');
+    const lines   = this.computeDiff(issue.codeSnippet ?? '', issue.fixedCode ?? '');
+    const hunk    = lines.map(l =>
+      l.type === 'removed' ? `-${l.old}` :
+      l.type === 'added'   ? `+${l.next}` :
+                              ` ${l.old}`
+    ).join('\n');
+    return [
+      `--- a/${file}`,
+      `+++ b/${file}`,
+      `@@ -${lineNum},${old.length} +${lineNum},${next.length} @@`,
+      hunk,
+    ].join('\n');
+  }
   protected get coverageStats()  { return this.audit?.coverageStats; }
   protected get fetchedFiles()   { return this.audit?.fetchedFiles ?? []; }
 
@@ -325,6 +443,7 @@ export class ResultsComponent implements OnInit {
 
   protected selectIssue(issue: AuditIssue): void {
     this.selectedIssue.set(issue);
+    this.diffMode.set('details');
     this.activeTab.set('issues');
   }
 

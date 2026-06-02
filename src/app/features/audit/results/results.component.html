@@ -215,58 +215,176 @@
         <!-- Coverage Panel -->
         @if (coverageStats) {
           <div class="mt-4">
+            <!-- Toggle header -->
             <button (click)="showCoverage.set(!showCoverage())"
                     class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-all hover:bg-white/5"
                     style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
-              <span class="flex items-center gap-2 font-medium" style="color:var(--color-text);">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+              <span class="flex items-center gap-2 font-semibold text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2">
+                  <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                 </svg>
-                Scan Coverage — what was auto-verified vs what needs manual review
+                Scan Coverage
+                <span class="text-xs font-normal" style="color:var(--color-text-muted);">per-topic breakdown of auto-verified vs manual review</span>
               </span>
               <span class="flex items-center gap-3 text-xs" style="color:var(--color-text-muted);">
-                <span class="text-green-400">{{ coverageStats.autoChecked + coverageStats.partialChecked }} checked</span>
-                <span class="text-surface-500">{{ coverageStats.notVerifiable }} manual</span>
+                <span class="text-green-400 font-semibold">{{ (coverageStats.autoChecked + coverageStats.partialChecked) }} checked</span>
+                <span>·</span>
+                <span>{{ coverageStats.notVerifiable }} manual</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     [style.transform]="showCoverage() ? 'rotate(180deg)' : ''">
+                     [style.transform]="showCoverage() ? 'rotate(180deg)' : 'rotate(0deg)'"
+                     style="transition:transform 0.2s ease;">
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </span>
             </button>
 
             @if (showCoverage()) {
-              <div class="mt-2 rounded-xl p-4" style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
-                <div class="grid grid-cols-3 gap-3 mb-4">
-                  <div class="rounded-lg p-3 text-center" style="background: rgba(26,92,255,0.08); border: 1px solid rgba(26,92,255,0.2);">
-                    <div class="text-xl font-bold text-white font-mono">{{ coverageStats.autoChecked }}</div>
-                    <div class="text-xs mt-0.5 text-brand-400">Auto-verified</div>
-                    <div class="text-xs mt-1" style="color:var(--color-text-muted);">Config file analysis</div>
-                  </div>
-                  <div class="rounded-lg p-3 text-center" style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);">
-                    <div class="text-xl font-bold text-white font-mono">{{ coverageStats.partialChecked }}</div>
-                    <div class="text-xs mt-0.5 text-yellow-400">Partially verified</div>
-                    <div class="text-xs mt-1" style="color:var(--color-text-muted);">Sample file analysis</div>
-                  </div>
-                  <div class="rounded-lg p-3 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);">
-                    <div class="text-xl font-bold text-white font-mono">{{ coverageStats.notVerifiable }}</div>
-                    <div class="text-xs mt-0.5" style="color:var(--color-text-muted);">Manual review</div>
-                    <div class="text-xs mt-1" style="color:var(--color-text-muted);">Cannot auto-verify</div>
-                  </div>
+              <div class="mt-2 rounded-xl overflow-hidden"
+                   style="border: 1px solid var(--color-border);">
+
+                <!-- Legend row -->
+                <div class="flex items-center gap-4 px-4 py-2.5 text-xs border-b"
+                     style="background:rgba(255,255,255,0.02); border-color:var(--color-border);">
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full" style="background:#3b82f6;"></span>
+                    <span style="color:var(--color-text-muted);">Auto-verified (config file)</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full" style="background:#f59e0b;"></span>
+                    <span style="color:var(--color-text-muted);">Partial (sample file check)</span>
+                  </span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full" style="background:#374151;"></span>
+                    <span style="color:var(--color-text-muted);">Manual review required</span>
+                  </span>
                 </div>
-                <div class="text-xs rounded-lg px-3 py-2 flex items-start gap-2"
-                     style="background: rgba(26,92,255,0.06); border: 1px solid rgba(26,92,255,0.15);">
-                  <svg class="flex-shrink-0 mt-0.5 text-brand-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+
+                <!-- Per-topic rows -->
+                @for (group of topicCoverageGroups; track group.topic.id) {
+                  <div style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+
+                    <!-- Topic header row -->
+                    <button (click)="toggleTopicExpand(group.topic.id)"
+                            class="w-full flex items-center gap-3 px-4 py-3 text-left transition-all hover:bg-white/3"
+                            style="background: var(--color-surface);">
+
+                      <!-- Expand chevron -->
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                           style="flex-shrink:0; transition:transform 0.15s ease; color: var(--color-text-muted);"
+                           [style.transform]="isTopicExpanded(group.topic.id) ? 'rotate(90deg)' : 'rotate(0deg)'">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+
+                      <!-- Topic name + icon -->
+                      <span class="text-xs font-semibold flex-shrink-0 w-36" style="color:var(--color-text);">
+                        {{ group.topic.shortName }}
+                      </span>
+
+                      <!-- Visual bar of items -->
+                      <span class="flex items-center gap-0.5 flex-1 flex-wrap">
+                        @for (item of group.auto; track item.id) {
+                          <span class="w-5 h-5 rounded flex items-center justify-center text-xs font-bold flex-shrink-0"
+                                [style.background]="statusCoverageColor(item.status, item.verifiability)"
+                                [style.color]="statusCoverageTextColor(item.status, item.verifiability)"
+                                [title]="item.practice + ' (' + item.status + ')'">
+                            {{ statusIcon(item.status) }}
+                          </span>
+                        }
+                        @for (item of group.partial; track item.id) {
+                          <span class="w-5 h-5 rounded flex items-center justify-center text-xs font-bold flex-shrink-0"
+                                style="border: 1px solid rgba(245,158,11,0.3);"
+                                [style.background]="statusCoverageColor(item.status, item.verifiability)"
+                                [style.color]="statusCoverageTextColor(item.status, item.verifiability)"
+                                [title]="item.practice + ' (' + item.status + ')'">
+                            {{ statusIcon(item.status) }}
+                          </span>
+                        }
+                        @for (item of group.manual; track item.id) {
+                          <span class="w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0"
+                                style="border: 1px dashed rgba(255,255,255,0.1);"
+                                [style.background]="statusCoverageColor(item.status, item.verifiability)"
+                                [style.color]="statusCoverageTextColor(item.status, item.verifiability)"
+                                title="Manual review required">
+                            —
+                          </span>
+                        }
+                      </span>
+
+                      <!-- Summary counts -->
+                      <span class="flex items-center gap-2 text-xs flex-shrink-0 ml-2">
+                        @if (group.failed.length > 0) {
+                          <span class="text-red-400 font-semibold">{{ group.failed.length }}✗</span>
+                        }
+                        <span class="text-green-400">{{ (group.auto.length + group.partial.length) }} checked</span>
+                        <span style="color:var(--color-text-muted);">{{ group.manual.length }} manual</span>
+                      </span>
+                    </button>
+
+                    <!-- Expanded item list -->
+                    @if (isTopicExpanded(group.topic.id)) {
+                      <div class="px-4 pb-3 pt-1" style="background:rgba(0,0,0,0.15);">
+                        <div class="grid grid-cols-1 gap-1">
+                          @for (item of group.items; track item.id) {
+                            <div class="flex items-start gap-2 py-1.5 px-2 rounded-lg text-xs"
+                                 [style.background]="item.verifiability === 'manual' ? 'transparent' : 'rgba(255,255,255,0.02)'">
+                              <!-- Status badge -->
+                              <span class="w-14 flex-shrink-0 flex items-center gap-1 font-mono text-xs"
+                                    [style.color]="statusCoverageTextColor(item.status, item.verifiability)">
+                                @if (item.verifiability === 'manual') {
+                                  <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:#374151;"></span>
+                                  manual
+                                } @else if (item.verifiability === 'auto') {
+                                  <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:#3b82f6;"></span>
+                                  auto
+                                } @else {
+                                  <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:#f59e0b;"></span>
+                                  partial
+                                }
+                              </span>
+                              <!-- Result icon -->
+                              <span class="w-4 flex-shrink-0 font-bold text-center"
+                                    [style.color]="statusCoverageTextColor(item.status, item.verifiability)">
+                                {{ statusIcon(item.status) }}
+                              </span>
+                              <!-- Severity -->
+                              <span class="w-16 flex-shrink-0 text-xs font-mono"
+                                    [ngClass]="item.severity === 'CRITICAL' ? 'text-red-400' : item.severity === 'HIGH' ? 'text-orange-400' : item.severity === 'MEDIUM' ? 'text-yellow-400' : 'text-green-400'">
+                                {{ item.severity }}
+                              </span>
+                              <!-- Practice name -->
+                              <span [style.color]="item.verifiability === 'manual' ? 'var(--color-text-muted)' : 'var(--color-text)'"
+                                    class="flex-1 leading-snug">
+                                {{ item.practice }}
+                              </span>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+
+                  </div>
+                }
+
+                <!-- Footer note -->
+                <div class="flex items-start gap-2 px-4 py-3 text-xs"
+                     style="background:rgba(26,92,255,0.04); border-top:1px solid rgba(26,92,255,0.1);">
+                  <svg class="flex-shrink-0 mt-0.5" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+                  </svg>
                   <span style="color:var(--color-text-muted);">
-                    Items marked "not checked" require manual code review — testing coverage, architectural patterns, runtime behaviour, and visual a11y checks cannot be determined from static file analysis alone.
+                    Score only counts auto/partial-verified items.
+                    Manual items require human review — open each section to see what needs checking.
                     @if (fetchedFiles.length > 0) {
-                      Files analysed: {{ fetchedFiles.length }} config files ({{ fetchedFiles.join(', ').slice(0, 120) }}{{ fetchedFiles.join(', ').length > 120 ? '…' : '' }}).
+                      Files analysed: {{ fetchedFiles.join(', ') }}.
                     }
                   </span>
                 </div>
+
               </div>
             }
           </div>
         }
+
 
       <!-- ISSUE EXPLORER TAB -->
       @if (activeTab() === 'issues') {

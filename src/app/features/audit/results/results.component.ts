@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -11,6 +11,7 @@ import {
   ToolStatus, LighthouseReport, ObservatoryReport, ExternalTool,
 } from '../../../core/models/tools.model';
 import { LhError } from '../../../core/services/tools.service';
+import { CHECKLIST_DATA } from '../../../core/services/checklist.data';
 
 type ActiveTab = 'matrix' | 'issues' | 'tools';
 
@@ -85,9 +86,60 @@ export class ResultsComponent implements OnInit {
   protected get filteredIssues() { return this.auditService.filteredIssues(); }
   protected get summaryMatrix()  { return this.audit?.summaryMatrix ?? {}; }
   protected get matrixTopics()   { return Object.entries(this.summaryMatrix); }
-  protected showCoverage         = signal(false);
+  protected showCoverage         = signal(true);  // open by default
+  protected expandedTopics       = signal<Set<string>>(new Set());
   protected get coverageStats()  { return this.audit?.coverageStats; }
   protected get fetchedFiles()   { return this.audit?.fetchedFiles ?? []; }
+
+  protected get topicCoverageGroups() {
+    const audit = this.audit;
+    if (!audit) return [];
+    return CHECKLIST_DATA.map(topic => {
+      const items = audit.issues.filter(i => i.topicId === topic.id);
+      const auto     = items.filter(i => i.verifiability === 'auto');
+      const partial  = items.filter(i => i.verifiability === 'partial');
+      const manual   = items.filter(i => i.verifiability === 'manual');
+      const checked  = items.filter(i => i.status !== 'not-checked');
+      const failed   = items.filter(i => i.status === 'fail');
+      return { topic, auto, partial, manual, checked, failed, items };
+    });
+  }
+
+  protected toggleTopicExpand(topicId: string): void {
+    this.expandedTopics.update(s => {
+      const n = new Set(s);
+      n.has(topicId) ? n.delete(topicId) : n.add(topicId);
+      return n;
+    });
+  }
+
+  protected isTopicExpanded(topicId: string): boolean {
+    return this.expandedTopics().has(topicId);
+  }
+
+  protected statusIcon(status: string): string {
+    if (status === 'pass')        return '✓';
+    if (status === 'fail')        return '✗';
+    if (status === 'warning')     return '⚠';
+    if (status === 'not-checked') return '—';
+    return '?';
+  }
+
+  protected statusCoverageColor(status: string, verif: string): string {
+    if (verif === 'manual') return 'rgba(255,255,255,0.08)';
+    if (status === 'pass')    return 'rgba(34,197,94,0.15)';
+    if (status === 'fail')    return 'rgba(239,68,68,0.15)';
+    if (status === 'warning') return 'rgba(245,158,11,0.15)';
+    return 'rgba(255,255,255,0.06)';
+  }
+
+  protected statusCoverageTextColor(status: string, verif: string): string {
+    if (verif === 'manual') return '#4b5563';
+    if (status === 'pass')    return '#22c55e';
+    if (status === 'fail')    return '#ef4444';
+    if (status === 'warning') return '#f59e0b';
+    return '#6b7280';
+  }
 
   protected get issueCountByStatus() {
     const issues = this.audit?.issues ?? [];

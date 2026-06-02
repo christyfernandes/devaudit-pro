@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -127,7 +127,15 @@ export class NewAuditComponent {
 
   protected clearSelection(): void { this.selectedIds.set(new Set()); }
 
-  protected setHoverDownload(id: string | null): void { this.hoverDownloadId.set(id); }
+  protected toggleDownloadMenu(id: string, event: Event): void {
+    event.stopPropagation();
+    this.hoverDownloadId.set(this.hoverDownloadId() === id ? null : id);
+  }
+
+  protected stopProp(event: Event): void { event.stopPropagation(); }
+
+  @HostListener('document:click')
+  closeDownloadMenus(): void { this.hoverDownloadId.set(null); }
 
   // ── Export ─────────────────────────────────────────────────────────────────
 

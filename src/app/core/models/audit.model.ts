@@ -1,7 +1,10 @@
 import { Severity, Group } from './checklist.model';
 
 export type AuditStatus = 'idle' | 'scanning' | 'completed' | 'error';
-export type IssueStatus = 'pass' | 'fail' | 'warning' | 'skipped';
+export type IssueStatus = 'pass' | 'fail' | 'warning' | 'not-checked';
+
+/** How much of a checklist item can be verified without human review */
+export type Verifiability = 'auto' | 'partial' | 'manual';
 
 export interface AuditIssue {
   id: string;
@@ -12,6 +15,7 @@ export interface AuditIssue {
   severity: Severity;
   group: Group;
   status: IssueStatus;
+  verifiability: Verifiability;
   filePath?: string;
   lineNumber?: number;
   columnNumber?: number;
@@ -19,6 +23,16 @@ export interface AuditIssue {
   suggestedFix?: string;
   codeSnippet?: string;
   fixedCode?: string;
+}
+
+export interface CoverageStats {
+  total: number;
+  autoChecked: number;    // 'auto' verifiability items
+  partialChecked: number; // 'partial' verifiability items
+  notVerifiable: number;  // 'manual' verifiability items
+  passed: number;
+  failed: number;
+  warnings: number;
 }
 
 export interface AuditSummaryMatrix {
@@ -31,6 +45,7 @@ export interface AuditSummaryMatrix {
     total: number;
     passed: number;
     failed: number;
+    notChecked: number;
   };
 }
 
@@ -48,6 +63,10 @@ export interface AuditReport {
   totalFiles: number;
   scannedFiles: number;
   overallScore: number;
+  coverageStats: CoverageStats;
+  /** Files actually fetched and analysed */
+  fetchedFiles: string[];
+  isPrivateRepo?: boolean;
 }
 
 export interface ScanProgress {

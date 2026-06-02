@@ -150,6 +150,8 @@
                 <th class="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-yellow-400">MEDIUM</th>
                 <th class="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-green-400">PASSED</th>
                 <th class="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider"
+                    style="color: var(--color-text-muted);">NOT CHECKED</th>
+                <th class="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider"
                     style="color: var(--color-text-muted);">TOTAL</th>
               </tr>
             </thead>
@@ -194,6 +196,13 @@
                   <td class="px-4 py-3.5 text-center">
                     <span class="text-green-400 font-medium">{{ entry[1].passed }}</span>
                   </td>
+                  <td class="px-4 py-3.5 text-center">
+                    @if ((entry[1].notChecked ?? 0) > 0) {
+                      <span class="text-xs text-surface-500">{{ entry[1].notChecked }}</span>
+                    } @else {
+                      <span class="text-surface-600">—</span>
+                    }
+                  </td>
                   <td class="px-4 py-3.5 text-center" style="color: var(--color-text-muted);">{{ entry[1].total }}</td>
                 </tr>
               }
@@ -201,6 +210,63 @@
           </table>
         </div>
       }
+
+
+        <!-- Coverage Panel -->
+        @if (coverageStats) {
+          <div class="mt-4">
+            <button (click)="showCoverage.set(!showCoverage())"
+                    class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-all hover:bg-white/5"
+                    style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+              <span class="flex items-center gap-2 font-medium" style="color:var(--color-text);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+                </svg>
+                Scan Coverage — what was auto-verified vs what needs manual review
+              </span>
+              <span class="flex items-center gap-3 text-xs" style="color:var(--color-text-muted);">
+                <span class="text-green-400">{{ coverageStats.autoChecked + coverageStats.partialChecked }} checked</span>
+                <span class="text-surface-500">{{ coverageStats.notVerifiable }} manual</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     [style.transform]="showCoverage() ? 'rotate(180deg)' : ''">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </span>
+            </button>
+
+            @if (showCoverage()) {
+              <div class="mt-2 rounded-xl p-4" style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                  <div class="rounded-lg p-3 text-center" style="background: rgba(26,92,255,0.08); border: 1px solid rgba(26,92,255,0.2);">
+                    <div class="text-xl font-bold text-white font-mono">{{ coverageStats.autoChecked }}</div>
+                    <div class="text-xs mt-0.5 text-brand-400">Auto-verified</div>
+                    <div class="text-xs mt-1" style="color:var(--color-text-muted);">Config file analysis</div>
+                  </div>
+                  <div class="rounded-lg p-3 text-center" style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);">
+                    <div class="text-xl font-bold text-white font-mono">{{ coverageStats.partialChecked }}</div>
+                    <div class="text-xs mt-0.5 text-yellow-400">Partially verified</div>
+                    <div class="text-xs mt-1" style="color:var(--color-text-muted);">Sample file analysis</div>
+                  </div>
+                  <div class="rounded-lg p-3 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);">
+                    <div class="text-xl font-bold text-white font-mono">{{ coverageStats.notVerifiable }}</div>
+                    <div class="text-xs mt-0.5" style="color:var(--color-text-muted);">Manual review</div>
+                    <div class="text-xs mt-1" style="color:var(--color-text-muted);">Cannot auto-verify</div>
+                  </div>
+                </div>
+                <div class="text-xs rounded-lg px-3 py-2 flex items-start gap-2"
+                     style="background: rgba(26,92,255,0.06); border: 1px solid rgba(26,92,255,0.15);">
+                  <svg class="flex-shrink-0 mt-0.5 text-brand-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                  <span style="color:var(--color-text-muted);">
+                    Items marked "not checked" require manual code review — testing coverage, architectural patterns, runtime behaviour, and visual a11y checks cannot be determined from static file analysis alone.
+                    @if (fetchedFiles.length > 0) {
+                      Files analysed: {{ fetchedFiles.length }} config files ({{ fetchedFiles.join(', ').slice(0, 120) }}{{ fetchedFiles.join(', ').length > 120 ? '…' : '' }}).
+                    }
+                  </span>
+                </div>
+              </div>
+            }
+          </div>
+        }
 
       <!-- ISSUE EXPLORER TAB -->
       @if (activeTab() === 'issues') {

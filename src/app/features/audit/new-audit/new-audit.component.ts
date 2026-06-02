@@ -25,6 +25,7 @@ export class NewAuditComponent {
   protected urlError        = signal<string | null>(null);
   protected confirmDeleteId = signal<string | null>(null);
   protected selectedIds     = signal<Set<string>>(new Set());
+  protected hoverDownloadId = signal<string | null>(null);
 
   // Duplicate detection — all previous scans of the same repo URL
   protected existingScans = computed(() => {
@@ -125,6 +126,8 @@ export class NewAuditComponent {
   }
 
   protected clearSelection(): void { this.selectedIds.set(new Set()); }
+
+  protected setHoverDownload(id: string | null): void { this.hoverDownloadId.set(id); }
 
   // ── Export ─────────────────────────────────────────────────────────────────
 

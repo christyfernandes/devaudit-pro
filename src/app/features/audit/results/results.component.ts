@@ -85,6 +85,9 @@ export class ResultsComponent implements OnInit {
   protected get filteredIssues() { return this.auditService.filteredIssues(); }
   protected get summaryMatrix()  { return this.audit?.summaryMatrix ?? {}; }
   protected get matrixTopics()   { return Object.entries(this.summaryMatrix); }
+  protected showCoverage         = signal(false);
+  protected get coverageStats()  { return this.audit?.coverageStats; }
+  protected get fetchedFiles()   { return this.audit?.fetchedFiles ?? []; }
 
   protected get issueCountByStatus() {
     const issues = this.audit?.issues ?? [];

@@ -11,7 +11,6 @@ export class ReportExportService {
     const html = this.buildHtml([audit], `${audit.repoName.replace(/\//g, '-')} — Audit Report`);
     const win = window.open('', '_blank');
     if (!win) {
-      // Popup blocked — fall back to HTML download
       this.downloadSingle(audit);
       return;
     }
@@ -19,7 +18,143 @@ export class ReportExportService {
     win.document.close();
   }
 
-  /** Download a single audit report as a self-contained HTML file */
+  /** Download a Markdown summary of the audit */
+  downloadMarkdown(audit: AuditReport): void {
+    const slug = audit.repoName.replace(/\//g, '-');
+    const date = this.fmtDate(audit.completedAt ?? audit.startedAt);
+    const md   = this.buildMarkdown(audit);
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `devaudit-${slug}-${date}.md`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  /** Download multiple audits as a combined Markdown file */
+  downloadMultipleMarkdown(audits: AuditReport[]): void {
+    const md   = audits.map(a => this.buildMarkdown(a)).join('\n\n---\n\n');
+    const date = this.fmtDate(new Date());
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `devaudit-combined-${date}.md`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  /** Open mailto: with a formatted audit summary pre-filled */
+  emailReport(audit: AuditReport): void {
+    const fails    = audit.issues.filter(i => i.status === 'fail');
+    const critical = fails.filter(i => i.severity === 'CRITICAL').length;
+    const high     = fails.filter(i => i.severity === 'HIGH').length;
+
+    const subject = encodeURIComponent(
+      `DevAudit Report: ${audit.repoName} (Score ${audit.overallScore}/100)`
+    );
+
+    const topFailures = fails.slice(0, 5)
+      .map((f, i) => `${i + 1}. [${f.severity}] ${f.practice}`)
+      .join('\n');
+
+    const body = encodeURIComponent([
+      `DevAudit Pro — Audit Report`,
+      ``,
+      `Repository : ${audit.repoUrl}`,
+      `Branch     : ${audit.branch}`,
+      `Score      : ${audit.overallScore}/100  (${this.scoreLabel(audit.overallScore)})`,
+      `Completed  : ${this.fmtFull(audit.completedAt ?? audit.startedAt)}`,
+      ``,
+      `Summary`,
+      `-------`,
+      `Failures : ${fails.length}  (Critical: ${critical}, High: ${high})`,
+      `Warnings : ${audit.issues.filter(i => i.status === 'warning').length}`,
+      `Passed   : ${audit.issues.filter(i => i.status === 'pass').length}`,
+      ``,
+      `Top Failures`,
+      `------------`,
+      topFailures || 'No failures detected.',
+      ``,
+      `View full interactive report at:`,
+      `https://christyfernandes.github.io/devaudit-pro/`,
+      ``,
+      `— Sent from DevAudit Pro`,
+    ].join('\n'));
+
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
+
+  private buildMarkdown(audit: AuditReport): string {
+    const fails    = audit.issues.filter(i => i.status === 'fail');
+    const warnings = audit.issues.filter(i => i.status === 'warning');
+    const passes   = audit.issues.filter(i => i.status === 'pass');
+    const score    = audit.overallScore;
+    const grade    = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
+
+    const lines: string[] = [
+      `# DevAudit Pro — Audit Report`,
+      ``,
+      `| Field | Value |`,
+      `|---|---|`,
+      `| Repository | \`${audit.repoName}\` |`,
+      `| Branch | \`${audit.branch}\` |`,
+      `| Repo URL | ${audit.repoUrl} |`,
+      `| Score | **${score}/100** (Grade ${grade}) |`,
+      `| Completed | ${this.fmtFull(audit.completedAt ?? audit.startedAt)} |`,
+      `| Files Analysed | ${audit.scannedFiles} |`,
+      ``,
+      `## Summary`,
+      ``,
+      `| Status | Count |`,
+      `|---|---|`,
+      `| ❌ Failures | ${fails.length} |`,
+      `| ⚠️ Warnings | ${warnings.length} |`,
+      `| ✅ Passed | ${passes.length} |`,
+      `| ⬜ Not Checked | ${audit.issues.filter(i => i.status === 'not-checked').length} |`,
+      ``,
+      `## Compliance Matrix`,
+      ``,
+      `| Domain | Critical | High | Medium | Passed | Not Checked |`,
+      `|---|---|---|---|---|---|`,
+    ];
+
+    for (const [, row] of Object.entries(audit.summaryMatrix)) {
+      lines.push(`| ${row.topicName} | ${row.critical || '—'} | ${row.high || '—'} | ${row.medium || '—'} | ${row.passed} | ${row.notChecked ?? 0} |`);
+    }
+
+    if (fails.length > 0) {
+      lines.push('', '## Failures', '');
+      for (const issue of fails) {
+        lines.push(
+          `### ${issue.severity} — ${issue.practice}`,
+          ``,
+          `**Topic:** ${issue.topicName}  `,
+          `**File:** ${issue.filePath ? `\`${issue.filePath}\`` + (issue.lineNumber ? `:${issue.lineNumber}` : '') : '_Not file-specific_'}  `,
+          ``,
+          issue.explanation,
+          ``
+        );
+        if (issue.suggestedFix) lines.push(`> 💡 **Fix:** ${issue.suggestedFix}`, ``);
+        if (issue.codeSnippet)  lines.push('```typescript', issue.codeSnippet, '```', ``);
+        if (issue.fixedCode)    lines.push('**Recommended:**', '```typescript', issue.fixedCode, '```', ``);
+      }
+    }
+
+    if (warnings.length > 0) {
+      lines.push('', '## Warnings', '');
+      for (const issue of warnings) {
+        lines.push(`- **${issue.severity}** ${issue.practice} — ${issue.explanation}`);
+      }
+    }
+
+    lines.push(
+      ``,
+      `---`,
+      `*Generated by [DevAudit Pro](https://christyfernandes.github.io/devaudit-pro/) · Frontend CoE Review Checklist v2.0*`
+    );
+
+    return lines.join('\n');
+  }
   downloadSingle(audit: AuditReport): void {
     const slug = audit.repoName.replace(/\//g, '-');
     const date = this.fmtDate(audit.completedAt ?? audit.startedAt);

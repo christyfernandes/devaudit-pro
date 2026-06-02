@@ -146,6 +146,14 @@ export class NewAuditComponent {
     this.exportService.downloadMultiple(audits);
   }
 
+  protected emailSelected(): void {
+    const ids    = this.selectedIds();
+    const audits = this.auditHistory.filter(a => ids.has(a.id));
+    if (!audits.length) return;
+    // Email the first selected audit (mailto doesn't support multiple attachments)
+    this.exportService.emailReport(audits[0]);
+  }
+
   // ── Display helpers ────────────────────────────────────────────────────────
 
   protected scoreColor(score: number): string {

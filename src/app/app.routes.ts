@@ -1,5 +1,14 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Routes, Router } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { AuthService } from './core/services/auth.service';
+
+export const adminGuard = () => {
+  const auth   = inject(AuthService);
+  const router = inject(Router);
+  if (auth.currentUser()?.role === 'admin') return true;
+  return router.createUrlTree(['/']);
+};
 
 export const routes: Routes = [
   {
@@ -31,6 +40,13 @@ export const routes: Routes = [
         title: 'Audit Results — DevAudit Pro',
       },
     ],
+  },
+  {
+    path: 'admin',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () =>
+      import('./features/admin/admin.component').then(m => m.AdminComponent),
+    title: 'Admin — DevAudit Pro',
   },
   {
     path: '**',

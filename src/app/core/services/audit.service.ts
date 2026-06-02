@@ -5,12 +5,14 @@ import {
 } from '../models/audit.model';
 import { IndexedDbService } from './indexed-db.service';
 import { GithubScannerService } from './github-scanner.service';
+import { ChecklistConfigService } from './checklist-config.service';
 import { CHECKLIST_DATA } from './checklist.data';
 
 @Injectable({ providedIn: 'root' })
 export class AuditService {
   private db      = inject(IndexedDbService);
   private scanner = inject(GithubScannerService);
+  private config  = inject(ChecklistConfigService);
 
   private readonly _currentAudit   = signal<AuditReport | null>(null);
   private readonly _scanProgress   = signal<ScanProgress | null>(null);
@@ -115,15 +117,21 @@ export class AuditService {
         }
       );
 
-      const summaryMatrix = this.buildMatrix(issues);
-      const coverageStats = this.buildCoverage(issues);
-      const overallScore  = this.calcScore(issues);
+      // Apply admin-disabled rules
+      const finalIssues = issues.map(issue =>
+        this.config.isEnabled(issue.checklistItemId)
+          ? issue
+          : { ...issue, status: 'not-checked' as const, explanation: 'Excluded by admin checklist configuration.' }
+      );
+      const summaryMatrix = this.buildMatrix(finalIssues);
+      const coverageStats = this.buildCoverage(finalIssues);
+      const overallScore  = this.calcScore(finalIssues);
 
       const completed: AuditReport = {
         id: auditId, repoUrl: rawUrl, repoName, branch,
         startedAt: this._currentAudit()!.startedAt,
         completedAt: new Date(), status: 'completed', progress: 100,
-        issues, summaryMatrix, coverageStats, fetchedFiles,
+        issues: finalIssues, summaryMatrix, coverageStats, fetchedFiles,
         totalFiles: fetchedFiles.length, scannedFiles: fetchedFiles.length,
         overallScore, isPrivateRepo: isPrivate,
       };

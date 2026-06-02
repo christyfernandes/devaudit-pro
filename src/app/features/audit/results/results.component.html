@@ -19,9 +19,23 @@
             </h1>
           </div>
           <div class="flex items-center gap-2">
-            <!-- Download dropdown -->
-            <div class="relative" (mouseenter)="showDownloadMenu.set(true)" (mouseleave)="showDownloadMenu.set(false)">
-              <button class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all hover:brightness-110"
+            <!-- Phase 2: Share Link -->
+            <div class="relative">
+              <button (click)="copyShareLink(); $event.stopPropagation()"
+                      class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all hover:bg-white/10"
+                      style="border:1px solid var(--color-border);color:var(--color-text);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+                {{ showCopied() ? 'Copied!' : 'Share' }}
+              </button>
+            </div>
+
+            <!-- Download dropdown — click-based -->
+            <div class="relative" (click)="$event.stopPropagation()">
+              <button (click)="showDownloadMenu.set(!showDownloadMenu())"
+                      class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white transition-all hover:brightness-110"
                       style="background: linear-gradient(135deg, #1a5cff, #7c3aed);">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -32,25 +46,50 @@
                 </svg>
               </button>
               @if (showDownloadMenu()) {
-                <div class="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-50 w-52"
-                     style="background: var(--color-surface-2); border: 1px solid var(--color-border); box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+                <div class="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-50 w-56"
+                     style="background:var(--color-surface-2);border:1px solid var(--color-border);box-shadow:0 8px 32px rgba(0,0,0,0.4);">
                   <button (click)="downloadReport('html')"
                           class="w-full flex items-center gap-3 px-4 py-3 text-left transition-all hover:bg-white/5">
                     <span class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-xs"
-                         style="background:rgba(245,158,11,0.15);color:#f59e0b;">HTML</span>
+                          style="background:rgba(245,158,11,0.15);color:#f59e0b;">HTML</span>
                     <span class="flex flex-col">
                       <span class="text-xs font-medium text-white">HTML Report</span>
-                      <span class="text-xs" style="color:var(--color-text-muted);">Self-contained, open in browser</span>
+                      <span class="text-xs" style="color:var(--color-text-muted);">Self-contained file</span>
                     </span>
                   </button>
                   <div style="height:1px;background:var(--color-border);"></div>
                   <button (click)="downloadReport('pdf')"
                           class="w-full flex items-center gap-3 px-4 py-3 text-left transition-all hover:bg-white/5">
                     <span class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-xs"
-                         style="background:rgba(239,68,68,0.15);color:#ef4444;">PDF</span>
+                          style="background:rgba(239,68,68,0.15);color:#ef4444;">PDF</span>
                     <span class="flex flex-col">
                       <span class="text-xs font-medium text-white">Save as PDF</span>
-                      <span class="text-xs" style="color:var(--color-text-muted);">Print dialog → Save as PDF</span>
+                      <span class="text-xs" style="color:var(--color-text-muted);">Browser print → PDF</span>
+                    </span>
+                  </button>
+                  <div style="height:1px;background:var(--color-border);"></div>
+                  <button (click)="downloadReport('markdown')"
+                          class="w-full flex items-center gap-3 px-4 py-3 text-left transition-all hover:bg-white/5">
+                    <span class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-xs"
+                          style="background:rgba(34,197,94,0.15);color:#22c55e;">.md</span>
+                    <span class="flex flex-col">
+                      <span class="text-xs font-medium text-white">Markdown</span>
+                      <span class="text-xs" style="color:var(--color-text-muted);">For GitHub wikis & docs</span>
+                    </span>
+                  </button>
+                  <div style="height:1px;background:var(--color-border);"></div>
+                  <button (click)="emailReport()"
+                          class="w-full flex items-center gap-3 px-4 py-3 text-left transition-all hover:bg-white/5">
+                    <span class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style="background:rgba(139,92,246,0.15);color:#a78bfa;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                      </svg>
+                    </span>
+                    <span class="flex flex-col">
+                      <span class="text-xs font-medium text-white">Email Summary</span>
+                      <span class="text-xs" style="color:var(--color-text-muted);">Opens mail client</span>
                     </span>
                   </button>
                 </div>
@@ -211,6 +250,89 @@
         </div>
       }
 
+
+        <!-- CI Integration section -->
+        @if (audit) {
+          <div class="mt-4">
+            <button (click)="showCiSection.set(!showCiSection())"
+                    class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-all hover:bg-white/5"
+                    style="background: var(--color-surface-2); border: 1px solid var(--color-border);">
+              <span class="flex items-center gap-2 font-semibold text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+                  <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                </svg>
+                CI Integration
+                <span class="text-xs font-normal" style="color:var(--color-text-muted);">GitHub Actions workflow + README badge</span>
+              </span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   [style.transform]="showCiSection() ? 'rotate(180deg)' : 'rotate(0)'"
+                   style="transition:transform 0.2s;">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+
+            @if (showCiSection()) {
+              <div class="mt-2 rounded-xl p-5" style="background:var(--color-surface-2);border:1px solid var(--color-border);">
+
+                <!-- Threshold + Badge row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+                  <!-- Threshold -->
+                  <div>
+                    <label class="block text-xs font-medium text-surface-400 mb-2">Minimum passing score</label>
+                    <div class="flex items-center gap-3">
+                      <input type="range" min="50" max="100" step="5"
+                             class="flex-1 h-1.5 rounded-full appearance-none cursor-pointer"
+                             style="accent-color:#1a5cff;"
+                             [value]="ciThreshold()"
+                             (input)="ciThreshold.set(+$any($event.target).value)" />
+                      <span class="font-mono text-sm font-bold w-12 text-right"
+                            [style.color]="audit.overallScore >= ciThreshold() ? '#22c55e' : '#ef4444'">
+                        {{ ciThreshold() }}
+                      </span>
+                    </div>
+                    <p class="text-xs mt-1"
+                       [style.color]="audit.overallScore >= ciThreshold() ? '#22c55e' : '#ef4444'">
+                      Current score {{ audit.overallScore }} —
+                      {{ audit.overallScore >= ciThreshold() ? '✅ Would PASS' : '❌ Would FAIL' }}
+                    </p>
+                  </div>
+
+                  <!-- README badge -->
+                  <div>
+                    <label class="block text-xs font-medium text-surface-400 mb-2">README badge</label>
+                    <div class="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-xs"
+                         style="background:var(--color-surface);border:1px solid var(--color-border);color:var(--color-text-muted);">
+                      <span class="truncate flex-1">{{ ciBadge() }}</span>
+                      <button (click)="copyCi('badge')"
+                              class="flex-shrink-0 text-xs px-2 py-1 rounded transition-all hover:bg-white/10"
+                              [style.color]="ciCopied() === 'badge' ? '#22c55e' : 'var(--color-text-muted)'">
+                        {{ ciCopied() === 'badge' ? 'Copied!' : 'Copy' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- YAML snippet -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-surface-400">.github/workflows/devaudit.yml</span>
+                    <button (click)="copyCi('yaml')"
+                            class="flex items-center gap-1.5 text-xs px-3 py-1 rounded-lg transition-all hover:bg-white/10"
+                            [style.color]="ciCopied() === 'yaml' ? '#22c55e' : 'var(--color-text-muted)'">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
+                      {{ ciCopied() === 'yaml' ? 'Copied!' : 'Copy YAML' }}
+                    </button>
+                  </div>
+                  <pre class="rounded-xl p-4 text-xs font-mono overflow-x-auto leading-relaxed"
+                       style="background:var(--color-surface);border:1px solid var(--color-border);color:#86efac;max-height:260px;">{{ ciYaml() }}</pre>
+                </div>
+              </div>
+            }
+          </div>
+        }
 
         <!-- Coverage Panel -->
         @if (coverageStats) {

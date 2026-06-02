@@ -1,6 +1,6 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuditService } from '../../../core/services/audit.service';
 import { ReportExportService } from '../../../core/services/report-export.service';
@@ -27,6 +27,16 @@ export class ResultsComponent implements OnInit {
   protected exportService = inject(ReportExportService);
   protected toolsService  = inject(ToolsService);
   private router          = inject(Router);
+  private route           = inject(ActivatedRoute);
+
+  // ── Phase 2: share link ────────────────────────────────────────────────────
+  protected showCopied      = signal(false);
+  protected showDownloadDdl = signal(false);
+
+  // ── Phase 2: CI integration ────────────────────────────────────────────────
+  protected showCiSection   = signal(false);
+  protected ciThreshold     = signal(70);
+  protected ciCopied        = signal<string | null>(null);
 
   // ── Existing tabs ──────────────────────────────────────────────────────────
   protected activeTab       = signal<ActiveTab>('matrix');
@@ -65,6 +75,12 @@ export class ResultsComponent implements OnInit {
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   ngOnInit(): void {
+    // Phase 2: load audit from deep-link query param (?id=audit-xxx)
+    const paramId = this.route.snapshot.queryParamMap.get('id');
+    if (paramId && !this.auditService.currentAudit()) {
+      this.auditService.loadHistoricalAudit(paramId);
+    }
+
     const audit = this.auditService.currentAudit();
     if (!audit || audit.status !== 'completed') {
       this.router.navigate(['/audit']);
@@ -365,14 +381,112 @@ export class ResultsComponent implements OnInit {
     this.router.navigate(['/audit']);
   }
 
-  protected downloadReport(format: 'html' | 'pdf' = 'html'): void {
+  protected downloadReport(format: 'html' | 'pdf' | 'markdown' = 'html'): void {
     const audit = this.auditService.currentAudit();
     if (!audit) return;
     this.showDownloadMenu.set(false);
-    if (format === 'html') {
-      this.exportService.downloadSingle(audit);
-    } else {
-      this.exportService.printAsPdf(audit);
-    }
+    this.showDownloadDdl.set(false);
+    if (format === 'html')     this.exportService.downloadSingle(audit);
+    else if (format === 'pdf') this.exportService.printAsPdf(audit);
+    else                       this.exportService.downloadMarkdown(audit);
   }
+
+  // ── Phase 2: Share Link ─────────────────────────────────────────────────────
+
+  protected copyShareLink(): void {
+    const audit = this.auditService.currentAudit();
+    if (!audit) return;
+    const url = `${window.location.origin}${window.location.pathname}?id=${audit.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      this.showCopied.set(true);
+      setTimeout(() => this.showCopied.set(false), 2500);
+    });
+  }
+
+  // ── Phase 2: Email Export ──────────────────────────────────────────────────
+
+  protected emailReport(): void {
+    const audit = this.auditService.currentAudit();
+    if (audit) this.exportService.emailReport(audit);
+  }
+
+  // ── Phase 2: CI Integration ────────────────────────────────────────────────
+
+  protected ciYaml(): string {
+    const audit = this.auditService.currentAudit();
+    if (!audit) return '';
+    const threshold = this.ciThreshold();
+    const score     = audit.overallScore;
+    const grade     = score >= threshold ? 'PASS' : 'FAIL';
+    return `# .github/workflows/devaudit.yml
+name: DevAudit Pro Check
+
+on:
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  devaudit:
+    name: Frontend Compliance Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run DevAudit Pro
+        id: audit
+        run: |
+          echo "🔍 DevAudit Pro — scanning \${{ github.repository }}"
+          echo "Branch: \${{ github.head_ref }}"
+          echo ""
+          echo "📊 Last audit score: ${score}/100 (threshold: ${threshold})"
+          echo "Status: ${grade}"
+          echo ""
+          echo "Open the full report:"
+          echo "https://christyfernandes.github.io/devaudit-pro/"
+          echo ""
+          # Fail the check if score is below threshold
+          if [ ${score} -lt ${threshold} ]; then
+            echo "❌ Score ${score} is below threshold ${threshold}"
+            exit 1
+          fi
+          echo "✅ Score ${score} meets threshold ${threshold}"
+
+      - name: Comment PR with DevAudit link
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: \`## DevAudit Pro Report
+              
+📊 **Score:** ${score}/100 | **Branch:** \${audit.branch}  
+🔗 [View full report](https://christyfernandes.github.io/devaudit-pro/)
+
+> Threshold: ${threshold}/100 — Status: **${grade}**\`
+            })`;
+  }
+
+  protected ciBadge(): string {
+    const audit = this.auditService.currentAudit();
+    if (!audit) return '';
+    const score = audit.overallScore;
+    const color = score >= 80 ? 'brightgreen' : score >= 60 ? 'yellow' : 'red';
+    const encodedRepo = encodeURIComponent(audit.repoName).replace(/-/g, '--');
+    return `[![DevAudit](https://img.shields.io/badge/DevAudit-${score}%25%20%7C%20${encodedRepo}-${color}?style=flat-square)](https://christyfernandes.github.io/devaudit-pro/)`;
+  }
+
+  protected copyCi(type: 'yaml' | 'badge'): void {
+    const text = type === 'yaml' ? this.ciYaml() : this.ciBadge();
+    navigator.clipboard.writeText(text).then(() => {
+      this.ciCopied.set(type);
+      setTimeout(() => this.ciCopied.set(null), 2000);
+    });
+  }
+
+  @HostListener('document:click')
+  closeDownloadDdl(): void { this.showDownloadDdl.set(false); }
 }

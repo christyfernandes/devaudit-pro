@@ -166,15 +166,17 @@
                 </button>
               }
 
-              <!-- Phase 2 email badge -->
-              <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
-                   style="background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.25); color: #a78bfa;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
-                </svg>
-                Email export
-                <span class="px-1 py-0.5 rounded text-xs font-semibold" style="background: rgba(124,58,237,0.3); color: #c4b5fd;">Phase 2</span>
-              </div>
+              @if (selectedIds().size > 0) {
+                <button (click)="emailSelected()"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:brightness-110"
+                        style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);color:#a78bfa;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                  </svg>
+                  Email {{ selectedIds().size === 1 ? 'report' : 'summary' }}
+                </button>
+              }
             </div>
           }
         </div>
@@ -290,6 +292,14 @@
                               <span class="w-6 h-6 rounded flex items-center justify-center font-bold text-xs flex-shrink-0"
                                     style="background:rgba(239,68,68,0.15);color:#ef4444;">PDF</span>
                               Save as PDF
+                            </button>
+                            <div style="height:1px;background:var(--color-border);"></div>
+                            <button (click)="exportService.downloadMarkdown(audit)"
+                                    class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-all hover:bg-white/5"
+                                    style="color:var(--color-text);">
+                              <span class="w-6 h-6 rounded flex items-center justify-center font-bold text-xs flex-shrink-0"
+                                    style="background:rgba(34,197,94,0.15);color:#22c55e;">.md</span>
+                              Markdown
                             </button>
                           </div>
                         }

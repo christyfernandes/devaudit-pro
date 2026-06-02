@@ -4,28 +4,74 @@ import {
   ObservatoryReport, ObservatoryTest, ExternalTool,
 } from '../models/tools.model';
 
-const PSI_BASE = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
-const OBS_BASE = 'https://http-observatory.security.mozilla.org/api/v1';
+const PSI_BASE  = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
+// Mozilla HTTP Observatory v2 API (relaunched Nov 2024)
+const OBS_BASE  = 'https://observatory.mozilla.org/api/v2';
+const LS_KEY    = 'devaudit_psi_api_key';
+
+export type LhErrorKind = 'quota' | 'network' | 'unknown';
+
+export interface LhError {
+  kind: LhErrorKind;
+  message: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ToolsService {
 
+  // ── API key management (localStorage) ─────────────────────────────────────
+
+  getSavedApiKey(): string {
+    return localStorage.getItem(LS_KEY) ?? '';
+  }
+
+  saveApiKey(key: string): void {
+    if (key.trim()) {
+      localStorage.setItem(LS_KEY, key.trim());
+    } else {
+      localStorage.removeItem(LS_KEY);
+    }
+  }
+
   // ── Google Lighthouse via PageSpeed Insights ───────────────────────────────
 
-  async runLighthouse(url: string, strategy: 'mobile' | 'desktop'): Promise<LighthouseReport> {
+  async runLighthouse(
+    url: string,
+    strategy: 'mobile' | 'desktop',
+    apiKey?: string,
+  ): Promise<LighthouseReport> {
+    const key = (apiKey ?? this.getSavedApiKey()).trim();
+    const keyParam = key ? `&key=${encodeURIComponent(key)}` : '';
+
     const endpoint =
       `${PSI_BASE}?url=${encodeURIComponent(url)}&strategy=${strategy}` +
-      `&category=performance&category=accessibility&category=best-practices&category=seo`;
+      `&category=performance&category=accessibility&category=best-practices&category=seo` +
+      keyParam;
 
     const res = await fetch(endpoint);
 
     if (!res.ok) {
-      let message = `PageSpeed API returned HTTP ${res.status}`;
+      let rawMessage = `PageSpeed API returned HTTP ${res.status}`;
+      let kind: LhErrorKind = 'unknown';
+
       try {
-        const err = await res.json();
-        message = err?.error?.message ?? message;
+        const err = await res.json() as { error?: { message?: string; status?: string } };
+        rawMessage = err?.error?.message ?? rawMessage;
+
+        // Detect quota errors specifically
+        if (
+          rawMessage.includes('Quota exceeded') ||
+          rawMessage.includes('quota') ||
+          res.status === 429
+        ) {
+          kind = 'quota';
+        } else if (res.status >= 500) {
+          kind = 'network';
+        }
       } catch { /* ignore */ }
-      throw new Error(message);
+
+      const lhErr: LhError = { kind, message: rawMessage };
+      throw lhErr;
     }
 
     const data = await res.json();
@@ -37,8 +83,8 @@ export class ToolsService {
     url: string,
     strategy: 'mobile' | 'desktop',
   ): LighthouseReport {
-    const lr = data['lighthouseResult'] as Record<string, unknown>;
-    const rawCats = lr['categories'] as Record<string, { id: string; title: string; score: number }>;
+    const lr        = data['lighthouseResult'] as Record<string, unknown>;
+    const rawCats   = lr['categories'] as Record<string, { id: string; title: string; score: number }>;
     const rawAudits = lr['audits'] as Record<string, {
       id: string; title: string; description: string;
       score: number | null; displayValue?: string; scoreDisplayMode: string;
@@ -48,118 +94,91 @@ export class ToolsService {
       id: c.id, title: c.title, score: c.score ?? 0,
     }));
 
-    // Core Web Vitals + key metrics (order matters for display)
     const cwvIds = [
-      'first-contentful-paint',
-      'largest-contentful-paint',
-      'total-blocking-time',
-      'cumulative-layout-shift',
-      'speed-index',
-      'interactive',
+      'first-contentful-paint', 'largest-contentful-paint',
+      'total-blocking-time', 'cumulative-layout-shift',
+      'speed-index', 'interactive',
     ];
+
     const coreWebVitals: LighthouseMetric[] = cwvIds
       .filter(id => rawAudits[id])
       .map(id => ({
-        id,
-        title: rawAudits[id].title,
+        id, title: rawAudits[id].title,
         displayValue: rawAudits[id].displayValue ?? '—',
         score: rawAudits[id].score ?? 0,
       }));
 
-    // Top failing audits (exclude CWV rows to avoid duplication)
     const failingAudits: LighthouseAudit[] = Object.values(rawAudits)
-      .filter(a =>
-        a.scoreDisplayMode === 'numeric' &&
-        a.score !== null &&
-        a.score < 0.9 &&
-        !cwvIds.includes(a.id),
-      )
+      .filter(a => a.scoreDisplayMode === 'numeric' && a.score !== null && a.score < 0.9 && !cwvIds.includes(a.id))
       .sort((a, b) => (a.score ?? 1) - (b.score ?? 1))
       .slice(0, 10)
-      .map(a => ({
-        id: a.id, title: a.title, description: a.description,
-        score: a.score, displayValue: a.displayValue,
-      }));
+      .map(a => ({ id: a.id, title: a.title, description: a.description, score: a.score, displayValue: a.displayValue }));
 
     return {
-      url,
-      finalUrl: (lr['finalUrl'] as string) ?? url,
+      url, finalUrl: (lr['finalUrl'] as string) ?? url,
       fetchTime: (lr['fetchTime'] as string) ?? '',
-      strategy,
-      categories,
-      coreWebVitals,
-      failingAudits,
+      strategy, categories, coreWebVitals, failingAudits,
     };
   }
 
-  // ── Mozilla HTTP Observatory ───────────────────────────────────────────────
+  // ── Mozilla HTTP Observatory v2 ────────────────────────────────────────────
+  //   New API: POST /api/v2/analyze?host={hostname}
+  //   Returns grade, score, tests array in one shot (no polling needed in v2)
 
   async runObservatory(url: string): Promise<ObservatoryReport> {
     const hostname = new URL(url).hostname;
 
-    // Kick off (or retrieve cached) scan
-    const postRes = await fetch(`${OBS_BASE}/analyze?host=${hostname}`, {
+    const res = await fetch(`${OBS_BASE}/analyze?host=${encodeURIComponent(hostname)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'rescan=false',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host: hostname }),
     });
 
-    if (!postRes.ok) {
-      throw new Error(`Observatory API unavailable (HTTP ${postRes.status})`);
-    }
-
-    let scanData = await postRes.json() as Record<string, unknown>;
-
-    // Poll until finished (max ~40 s)
-    const maxAttempts = 20;
-    for (let i = 0; i < maxAttempts; i++) {
-      const state = scanData['state'] as string;
-      if (state === 'FINISHED') break;
-      if (state === 'FAILED' || state === 'ABORTED') {
-        throw new Error(`Observatory scan ${state.toLowerCase()}`);
+    if (!res.ok) {
+      // Try GET as fallback (v2 supports both)
+      const getRes = await fetch(`${OBS_BASE}/analyze?host=${encodeURIComponent(hostname)}`);
+      if (!getRes.ok) {
+        throw new Error(
+          `Observatory API unavailable (HTTP ${res.status}). ` +
+          `Mozilla's HTTP Observatory may be temporarily down.`
+        );
       }
-      await this.delay(2000);
-      const pollRes = await fetch(`${OBS_BASE}/analyze?host=${hostname}`);
-      scanData = await pollRes.json();
+      const data = await getRes.json();
+      return this.parseObservatoryV2(data, hostname);
     }
 
-    if ((scanData['state'] as string) !== 'FINISHED') {
-      throw new Error('Observatory scan timed out. Try again in a moment.');
-    }
-
-    // Fetch individual test results
-    const scanId = scanData['scan_id'] as number;
-    const testsRes = await fetch(`${OBS_BASE}/tests?scan=${scanId}`);
-    if (!testsRes.ok) throw new Error('Could not fetch Observatory test details');
-
-    const testsRaw = await testsRes.json() as Record<string, Record<string, unknown>>;
-    return this.parseObservatory(scanData, testsRaw, hostname);
+    const data = await res.json();
+    return this.parseObservatoryV2(data, hostname);
   }
 
-  private parseObservatory(
-    scan: Record<string, unknown>,
-    tests: Record<string, Record<string, unknown>>,
+  private parseObservatoryV2(
+    data: Record<string, unknown>,
     hostname: string,
   ): ObservatoryReport {
-    const parsed: ObservatoryTest[] = Object.entries(tests).map(([key, t]) => ({
+    // v2 response shape: { grade, score, tests: { [key]: { pass, result, score_modifier, ... } } }
+    const rawTests = (data['tests'] ?? {}) as Record<string, Record<string, unknown>>;
+
+    const tests: ObservatoryTest[] = Object.entries(rawTests).map(([key, t]) => ({
       key,
-      title: (t['test_name'] as string) ?? key,
-      pass: t['pass'] as boolean,
+      title: (t['test_name'] as string) ?? (t['name'] as string) ?? key,
+      pass: Boolean(t['pass']),
       scoreModifier: (t['score_modifier'] as number) ?? 0,
       result: (t['result'] as string) ?? '',
       link: (t['link'] as string) ?? '',
     }));
 
-    // Failures first, then passes
-    parsed.sort((a, b) => (a.pass ? 1 : 0) - (b.pass ? 1 : 0));
+    tests.sort((a, b) => (a.pass ? 1 : 0) - (b.pass ? 1 : 0));
+
+    const passed = tests.filter(t => t.pass).length;
+    const failed = tests.filter(t => !t.pass).length;
 
     return {
-      grade: (scan['grade'] as string) ?? '?',
-      score: (scan['score'] as number) ?? 0,
-      testsPassed: (scan['tests_passed'] as number) ?? 0,
-      testsFailed: (scan['tests_failed'] as number) ?? 0,
+      grade: (data['grade'] as string) ?? (data['letterGrade'] as string) ?? '?',
+      score: (data['score'] as number) ?? 0,
+      testsPassed: (data['tests_passed'] as number) ?? passed,
+      testsFailed: (data['tests_failed'] as number) ?? failed,
       scanUrl: `https://observatory.mozilla.org/analyze/${hostname}`,
-      tests: parsed,
+      tests,
     };
   }
 
@@ -169,7 +188,7 @@ export class ToolsService {
     {
       name: 'PageSpeed Insights',
       icon: '⚡',
-      description: 'Full Lighthouse report on Google\'s servers',
+      description: 'Full Lighthouse report on Google\'s servers — always free',
       category: 'Performance',
       buildUrl: url => `https://pagespeed.web.dev/report?url=${encodeURIComponent(url)}`,
     },
@@ -183,7 +202,7 @@ export class ToolsService {
     {
       name: 'axe DevTools',
       icon: '🔍',
-      description: 'Deque axe browser extension (install in Chrome/Firefox)',
+      description: 'Deque axe browser extension for Chrome/Firefox',
       category: 'Accessibility',
       buildUrl: () => 'https://www.deque.com/axe/devtools/',
     },
@@ -207,7 +226,7 @@ export class ToolsService {
     {
       name: 'WebPageTest',
       icon: '📊',
-      description: 'Waterfall, filmstrip, and deep perf diagnostics',
+      description: 'Waterfall, filmstrip & deep perf diagnostics',
       category: 'Performance',
       buildUrl: url => `https://www.webpagetest.org/?url=${encodeURIComponent(url)}`,
     },
@@ -219,9 +238,9 @@ export class ToolsService {
       buildUrl: url => `https://validator.w3.org/nu/?doc=${encodeURIComponent(url)}`,
     },
     {
-      name: 'Mozilla Observatory',
+      name: 'HTTP Observatory',
       icon: '🦊',
-      description: 'Security headers and best practices audit',
+      description: 'Mozilla security headers & best practices',
       category: 'Security',
       buildUrl: url => {
         try { return `https://observatory.mozilla.org/analyze/${new URL(url).hostname}`; }
@@ -230,7 +249,6 @@ export class ToolsService {
     },
   ];
 
-  /** Guess the live deployment URL from a GitHub repo URL */
   guessLiveUrl(repoUrl: string): string {
     const match = repoUrl.match(/github\.com\/([^/]+)\/([^/?#]+)/);
     if (match) return `https://${match[1]}.github.io/${match[2]}/`;

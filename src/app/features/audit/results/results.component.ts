@@ -10,6 +10,7 @@ import { AuditIssue } from '../../../core/models/audit.model';
 import {
   ToolStatus, LighthouseReport, ObservatoryReport, ExternalTool,
 } from '../../../core/models/tools.model';
+import { LhError } from '../../../core/services/tools.service';
 
 type ActiveTab = 'matrix' | 'issues' | 'tools';
 
@@ -42,9 +43,15 @@ export class ResultsComponent implements OnInit {
   protected liveUrlError    = signal<string | null>(null);
   protected strategy        = signal<'mobile' | 'desktop'>('mobile');
 
+  // API key for PageSpeed Insights (optional, free from Google Cloud)
+  protected lhApiKey        = signal(this.toolsService.getSavedApiKey());
+  protected lhApiKeyValue   = this.toolsService.getSavedApiKey();
+  protected showApiKeyInput = signal(false);
+
   protected lhStatus        = signal<ToolStatus>('idle');
   protected lhReport        = signal<LighthouseReport | null>(null);
   protected lhError         = signal<string | null>(null);
+  protected lhErrorKind     = signal<'quota' | 'network' | 'unknown' | null>(null);
   protected lhProgress      = signal('');
 
   protected obsStatus       = signal<ToolStatus>('idle');
@@ -102,31 +109,47 @@ export class ResultsComponent implements OnInit {
 
     this.lhStatus.set('running');
     this.lhError.set(null);
+    this.lhErrorKind.set(null);
     this.lhReport.set(null);
     this.lhProgress.set('Connecting to PageSpeed Insights…');
 
     try {
-      // Progress hint updates while API runs (typically 15-30 s)
       const phases = [
-        'Fetching page…',
-        'Running performance audits…',
-        'Analysing accessibility…',
-        'Checking best practices…',
-        'Computing scores…',
+        'Fetching page…', 'Running performance audits…',
+        'Analysing accessibility…', 'Checking best practices…', 'Computing scores…',
       ];
       let pi = 0;
       const ticker = setInterval(() => {
         if (pi < phases.length) this.lhProgress.set(phases[pi++]);
       }, 5000);
 
-      const report = await this.toolsService.runLighthouse(url, this.strategy());
+      const report = await this.toolsService.runLighthouse(url, this.strategy(), this.lhApiKey());
       clearInterval(ticker);
       this.lhReport.set(report);
       this.lhStatus.set('done');
     } catch (e: unknown) {
-      this.lhError.set((e as Error).message ?? 'Lighthouse failed. Check the URL and try again.');
+      const lhErr = e as LhError;
+      this.lhError.set(lhErr.message ?? 'Lighthouse failed. Check the URL and try again.');
+      this.lhErrorKind.set(lhErr.kind ?? 'unknown');
       this.lhStatus.set('error');
+      // Auto-show API key input when quota error and no key set
+      if (lhErr.kind === 'quota' && !this.lhApiKey()) {
+        this.showApiKeyInput.set(true);
+      }
     }
+  }
+
+  protected setApiKey(key: string): void {
+    this.lhApiKeyValue = key;
+    this.lhApiKey.set(key);
+    this.toolsService.saveApiKey(key);
+  }
+
+  protected retryWithKey(): void {
+    this.lhStatus.set('idle');
+    this.lhError.set(null);
+    this.lhErrorKind.set(null);
+    this.runLighthouse();
   }
 
   protected async runObservatory(): Promise<void> {
@@ -219,6 +242,12 @@ export class ResultsComponent implements OnInit {
     if (grade.startsWith('B')) return '#84cc16';
     if (grade.startsWith('C')) return '#f59e0b';
     return '#ef4444';
+  }
+
+  protected obsDirectUrl(): string {
+    const url = this.liveUrl().trim();
+    try { return `https://observatory.mozilla.org/analyze/${new URL(url).hostname}`; }
+    catch { return 'https://observatory.mozilla.org/'; }
   }
 
   // ── Existing methods ───────────────────────────────────────────────────────

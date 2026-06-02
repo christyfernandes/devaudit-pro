@@ -459,7 +459,18 @@
                   <span class="text-base">⚡</span>
                   <div>
                     <div class="text-sm font-semibold text-white">Google Lighthouse</div>
-                    <div class="text-xs" style="color:var(--color-text-muted);">via PageSpeed Insights API</div>
+                    <div class="flex items-center gap-1.5 text-xs" style="color:var(--color-text-muted);">
+                      via PageSpeed Insights API
+                      <button (click)="showApiKeyInput.set(!showApiKeyInput())"
+                              class="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-all hover:text-white"
+                              [style.color]="lhApiKey() ? '#22c55e' : 'var(--color-text-muted)'"
+                              [title]="lhApiKey() ? 'API key set — click to manage' : 'Add API key to avoid quota limits'">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                        </svg>
+                        {{ lhApiKey() ? 'Key set' : 'Add key' }}
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <button (click)="runLighthouse()"
@@ -489,11 +500,65 @@
                 }
 
                 @if (lhStatus() === 'error') {
-                  <div class="py-4">
-                    <p class="text-sm text-red-400 mb-3">{{ lhError() }}</p>
+                  <div class="py-2">
+                    <!-- Quota error: guide user to add their own key -->
+                    @if (lhErrorKind() === 'quota') {
+                      <div class="rounded-xl p-3 mb-3"
+                           style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);">
+                        <p class="text-xs font-semibold text-yellow-400 mb-1">Daily quota exceeded</p>
+                        <p class="text-xs mb-2" style="color:var(--color-text-muted);">
+                          The shared free-tier quota has run out for today. Add your own free Google API key
+                          (takes ~30 seconds) to get 100 requests/day per key.
+                        </p>
+                        @if (!showApiKeyInput()) {
+                          <button (click)="showApiKeyInput.set(true)"
+                                  class="text-xs font-semibold text-yellow-400 underline hover:no-underline">
+                            Add my free API key →
+                          </button>
+                        }
+                      </div>
+                    } @else {
+                      <p class="text-xs text-red-400 mb-3">{{ lhError() }}</p>
+                    }
+
+                    <!-- API key input (shown on quota error or manually toggled) -->
+                    @if (showApiKeyInput()) {
+                      <div class="rounded-xl p-3 mb-3"
+                           style="background:var(--color-surface-2);border:1px solid var(--color-border);">
+                        <div class="flex items-center justify-between mb-1">
+                          <p class="text-xs font-semibold text-white">Google API Key</p>
+                          <a href="https://developers.google.com/speed/docs/insights/v5/get-started"
+                             target="_blank" rel="noopener"
+                             class="text-xs text-brand-400 hover:underline flex items-center gap-0.5">
+                            Get free key
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                          </a>
+                        </div>
+                        <div class="flex gap-2">
+                          <input type="text" placeholder="AIza..."
+                                 class="flex-1 px-2 py-1.5 rounded-lg text-xs font-mono outline-none"
+                                 style="background:var(--color-surface);border:1px solid var(--color-border);color:var(--color-text);"
+                                 [(ngModel)]="lhApiKeyValue"
+                                 (ngModelChange)="setApiKey($event)" />
+                          <button (click)="retryWithKey()"
+                                  [disabled]="!lhApiKeyValue"
+                                  class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:brightness-110 disabled:opacity-40"
+                                  style="background:rgba(26,92,255,0.7);">
+                            Retry
+                          </button>
+                        </div>
+                        <p class="mt-1.5 text-xs" style="color:var(--color-text-muted);">
+                          Saved to your browser — never sent anywhere except Google's API.
+                        </p>
+                      </div>
+                    }
+
+                    <!-- Always-working fallback link -->
                     <a [href]="lhPageSpeedUrl()" target="_blank" rel="noopener"
-                       class="text-xs text-brand-400 hover:underline flex items-center gap-1">
-                      Run on PageSpeed Insights instead
+                       class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white transition-all hover:brightness-110"
+                       style="background:linear-gradient(135deg,#1a5cff,#7c3aed);">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                      Open in PageSpeed Insights
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                     </a>
                   </div>
@@ -596,15 +661,21 @@
                 }
 
                 @if (obsStatus() === 'error') {
-                  <div class="py-4">
-                    <p class="text-sm text-red-400 mb-3">{{ obsError() }}</p>
-                    @if (obsReport() === null) {
-                      <a [href]="'https://observatory.mozilla.org/analyze/' + (liveUrl() ? '' : '')" target="_blank" rel="noopener"
-                         class="text-xs text-brand-400 hover:underline flex items-center gap-1">
-                        Run on Mozilla Observatory instead
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                      </a>
-                    }
+                  <div class="py-2">
+                    <div class="rounded-xl p-3 mb-3"
+                         style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);">
+                      <p class="text-xs text-red-400 mb-1 font-semibold">Observatory API unavailable</p>
+                      <p class="text-xs mb-0" style="color:var(--color-text-muted);">
+                        Mozilla's HTTP Observatory may be temporarily down or updated their API.
+                        Use the direct link below — it always works.
+                      </p>
+                    </div>
+                    <a [href]="obsDirectUrl()" target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white transition-all hover:brightness-110"
+                       style="background:linear-gradient(135deg,#7c3aed,#1a5cff);">
+                      🦊 Open in Mozilla Observatory
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </a>
                   </div>
                 }
 
